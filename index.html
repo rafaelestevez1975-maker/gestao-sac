@@ -1,0 +1,2119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão SAC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { laser: { 600: '#9333ea', 700: '#7e22ce' } } } }
+    }
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 3px; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      transition: all 0.15s; cursor: pointer;
+      color: #4b5563; width: 100%; text-align: left;
+    }
+    .sidebar-link:hover { background: #f5f3ff; color: #7c3aed; }
+    .sidebar-link.active { background: #ede9fe; color: #5b21b6; font-weight: 600; }
+    .fade-in { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+    .kanban-board { display:flex; gap:16px; overflow-x:auto; padding-bottom:16px; }
+    .kanban-col { min-width:260px; max-width:260px; }
+  </style>
+</head>
+<body class="bg-gray-50">
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+
+const MOTIVOS_DEFAULT = [
+  'Agendamento','Atendimento da unidade','Ausência de resultados',
+  'BEMP (plataforma)','Cancelamento','Encerramento da unidade',
+  'Estorno','Falha operacional','Intercorrência','Jurídico / Procon',
+  'Laser Club','Máquina Quebrada','Motivo Pessoal','Orçamento',
+  'Problemas de Saúde','Queimadura / Reação adversa','Reembolso',
+  'Sem unidade disponível','Sessões Expiradas','Transferência de Pacotes',
+  'Troca de Protocolo','Venda Indevida','Outros',
+];
+
+const UNIDADES = [
+  'Anápolis - Anápolis','Belo Horizonte - Lourdes BH','Boa Vista - Garden Shopping',
+  'Brasília - Conjunto Nacional Shopping','Brasília - DF Plaza Shopping',
+  'Cuiabá - Goiabeiras Shopping','Curitiba - Jockey Plaza Shopping',
+  'Duque de Caxias - Caxias Shopping','Fortaleza - Aldeota',
+  'Goiânia - Alto da Glória','Gramado - Gramado',
+  'Jaboatão dos Guararapes - Guararapes Shopping','Joinville - Garten Shopping',
+  'Juazeiro - Juá Garden','Maceió - Tabuleiro',
+  'Mogi das Cruzes - Mogi Shopping','Niterói - Plaza Niterói',
+  'Nova Iguaçu - Nova Iguaçu','Osasco - União de Osasco Shopping',
+  'Petrolina - Petrolina','Porto Alegre - Bourbon Country Shopping',
+  'Porto Alegre - Iguatemi Shopping','Porto Alegre - Pátio 24',
+  'Rio de Janeiro - Américas Shopping','Rio de Janeiro - Botafogo',
+  'Rio de Janeiro - Boulevard','Rio de Janeiro - Campo Grande',
+  'Rio de Janeiro - Carioca Shopping','Rio de Janeiro - Downtown Shopping',
+  'Rio de Janeiro - Grande Rio','Rio de Janeiro - Jacarepaguá',
+  'Rio de Janeiro - Metropolitano Barra','Rio de Janeiro - Norte Shopping',
+  'Rio de Janeiro - Nova América','Rio de Janeiro - Tijuca Shopping',
+  'Santo André - ABC Shopping','São Bernardo do Campo - Plaza Shopping',
+  'São Gonçalo - Partage São Gonçalo','São José dos Campos - Jardim das Colinas',
+  'São Paulo - Butantã Shopping','São Paulo - Campo Limpo Shopping',
+  'São Paulo - Frei Caneca Shopping','São Paulo - Ibirapuera Shopping',
+  'São Paulo - Leste Aricanduva Shopping','São Paulo - Loja Conceito Vila Olímpia',
+  'São Paulo - Metrô Tatuapé Shopping','São Paulo - Metrô Tucuruvi Shopping',
+  'São Paulo - Moema Pássaros','São Paulo - Mooca Plaza Shopping',
+  'São Paulo - Penha Shopping','São Paulo - SP Market Shopping',
+  'São Paulo - Santana','São Paulo - Tietê Plaza Shopping',
+  'São Paulo - Vila Clementino','São Paulo - Vila Olímpia Shopping',
+  'São Paulo - West Plaza Shopping','Suzano - Suzano Shopping',
+  'Taboão da Serra - Taboão Shopping',
+  '[INATIVA] Brasília - Conjunto Nacional Shopping',
+  '[INATIVA] Curitiba - Jockey Plaza',
+  '[INATIVA] Porto Alegre - Bourbon Country Shopping',
+  '[INATIVA] São Paulo - Emilia Marengo',
+];
+
+const CANAIS = ['WhatsApp','Sults','Blip','E-mail','Reclame Aqui','Procon','Instagram'];
+
+const PRIORIDADES = [
+  { key:'baixa',  label:'Baixa',   color:'bg-blue-100 text-blue-700' },
+  { key:'media',  label:'Média',   color:'bg-yellow-100 text-yellow-700' },
+  { key:'alta',   label:'Alta',    color:'bg-orange-100 text-orange-700' },
+  { key:'critica',label:'Crítica', color:'bg-red-100 text-red-700' },
+];
+
+const FASES = [
+  'Novo','Contato com cliente','Contato com unidade',
+  'Aguardando cliente','Aguardando retorno interno','Em pagamento','Concluído',
+];
+
+const STATUS_LIST = [
+  'Em andamento','Resolvido','Respondido',
+  'Aguardando Reembolso','Concluído','Encerrado / Sem Retorno',
+];
+
+const SLA_NORMAL = 3;
+const SLA_PAYMENT = 15;
+
+// ── INITIAL DATA ───────────────────────────────────────────────────────────
+
+const USERS_DEFAULT = [
+  { id:'u1', nome:'Rafael Estevez', email:'rafaelestevez1975@gmail.com', senha:'R@f@el2018',  role:'admin',     ativo:true, avatar:'RE' },
+  { id:'u2', nome:'Liliane',        email:'liliane@lasercompany.com',    senha:'Lili@2024',   role:'atendente', ativo:true, avatar:'LI' },
+  { id:'u3', nome:'Renata',         email:'renata@lasercompany.com',     senha:'Renata@2024', role:'atendente', ativo:true, avatar:'RE' },
+];
+
+function dAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
+const TICKETS_DEFAULT = [
+  { id:'T001', dataReclamacao:dAgo(15), dataAtendimento:dAgo(14), ultimaAtualizacao:dAgo(1),
+    canal:'WhatsApp', nomeCliente:'Thayanna Cunha', cpf:'115.871.087-98', email:'thayanna@email.com', telefone:'(21) 99876-5432',
+    fase:'Contato com unidade', responsavel:'u2', ticketBlip:'', sults:'', idReclameAqui:'', numeroProcon:'',
+    motivo:'Máquina Quebrada', protocolo:'PROT-001', areaReclamada:'Depilação', prioridade:'media',
+    unidade:'Rio de Janeiro - Boulevard', tipoUnidade:'FR', valorPago:'R$ 2.400,00', multaAplicada:'Sim',
+    reembolso:'R$ 480,00', pagamentoRealizado:false, valorRetido:'', dataReembolso:'',
+    status:'Em andamento', servico:'Depilação corpo inteiro',
+    observacoes:'Sessão cancelada por máquina quebrada há 3 semanas.',
+    historico:[
+      { data:dAgo(14), usuario:'Liliane', acao:'Primeiro contato com cliente realizado.' },
+      { data:dAgo(10), usuario:'Liliane', acao:'Contatado gerente da unidade.' },
+      { data:dAgo(1),  usuario:'Liliane', acao:'Conserto previsto para próxima semana.' },
+    ]},
+  { id:'T002', dataReclamacao:dAgo(5), dataAtendimento:dAgo(4), ultimaAtualizacao:dAgo(4),
+    canal:'Sults', nomeCliente:'Thais de Araujo Corona Forte', cpf:'362.608.598-80', email:'thais@email.com', telefone:'(11) 98765-4321',
+    fase:'Aguardando cliente', responsavel:'u2', sults:'9153',
+    motivo:'Agendamento', prioridade:'media', unidade:'São Paulo - Frei Caneca Shopping', tipoUnidade:'PR',
+    valorPago:'R$ 1.800,00', multaAplicada:'Não', pagamentoRealizado:false,
+    status:'Em andamento', servico:'Full Face',
+    observacoes:'Dificuldade de agendar sessões.',
+    historico:[{ data:dAgo(4), usuario:'Liliane', acao:'Ticket aberto via Sults.' }]},
+  { id:'T003', dataReclamacao:dAgo(8), dataAtendimento:dAgo(7), ultimaAtualizacao:dAgo(7),
+    canal:'WhatsApp', nomeCliente:'Iris Joana de Paula Cordeiro', cpf:'990.520.912-34', email:'iris@email.com', telefone:'(11) 97654-3210',
+    fase:'Em pagamento', responsavel:'u2', sults:'6446',
+    motivo:'Reembolso', prioridade:'alta', unidade:'São Paulo - Metrô Tucuruvi Shopping', tipoUnidade:'PR',
+    valorPago:'R$ 3.200,00', multaAplicada:'Não', reembolso:'R$ 3.200,00', pagamentoRealizado:false,
+    status:'Aguardando Reembolso', servico:'Melasma',
+    observacoes:'Reembolso aprovado. Aguardando financeiro.',
+    historico:[
+      { data:dAgo(7), usuario:'Liliane', acao:'Solicitação de reembolso recebida.' },
+      { data:dAgo(3), usuario:'Liliane', acao:'Reembolso aprovado pela diretoria.' },
+    ]},
+  { id:'T004', dataReclamacao:dAgo(2), dataAtendimento:dAgo(1), ultimaAtualizacao:dAgo(1),
+    canal:'Reclame Aqui', nomeCliente:'Carolina Mendes Silva', cpf:'234.567.890-12', email:'carolina@email.com', telefone:'(61) 98765-1234',
+    fase:'Novo', responsavel:'u3', idReclameAqui:'RA-2026-44521',
+    motivo:'Encerramento da unidade', prioridade:'critica', unidade:'Brasília - Conjunto Nacional Shopping', tipoUnidade:'FR',
+    valorPago:'R$ 4.500,00', pagamentoRealizado:false,
+    status:'Em andamento', servico:'Depilação + Rejuvenescimento',
+    observacoes:'Unidade fechou sem aviso. Cliente com sessões a utilizar.',
+    historico:[{ data:dAgo(1), usuario:'Renata', acao:'Ticket aberto via Reclame Aqui. Alta prioridade.' }]},
+  { id:'T005', dataReclamacao:dAgo(20), dataAtendimento:dAgo(19), ultimaAtualizacao:dAgo(2),
+    canal:'WhatsApp', nomeCliente:'Fernanda Rosendo Fernandes', cpf:'095.154.007-67', email:'fernanda@email.com', telefone:'(21) 95432-1098',
+    fase:'Concluído', responsavel:'u2',
+    motivo:'Agendamento', prioridade:'media', unidade:'Rio de Janeiro - Nova América', tipoUnidade:'FR',
+    valorPago:'R$ 900,00', pagamentoRealizado:false,
+    status:'Resolvido', servico:'Depilação',
+    observacoes:'Problema de agendamento resolvido.',
+    historico:[
+      { data:dAgo(19), usuario:'Liliane', acao:'Ticket aberto.' },
+      { data:dAgo(15), usuario:'Liliane', acao:'Agendamento refeito com sucesso.' },
+      { data:dAgo(2),  usuario:'Liliane', acao:'Cliente confirmou sessão. Encerrado.' },
+    ]},
+  { id:'T006', dataReclamacao:dAgo(30), dataAtendimento:dAgo(29), ultimaAtualizacao:dAgo(16),
+    canal:'Procon', nomeCliente:'Amanda Cristina Souza', cpf:'456.789.012-34', email:'amanda@email.com', telefone:'(62) 97890-1234',
+    fase:'Em pagamento', responsavel:'u3', numeroProcon:'PROCON-2026-00127',
+    motivo:'Jurídico / Procon', prioridade:'critica', unidade:'Goiânia - Alto da Glória', tipoUnidade:'FR',
+    valorPago:'R$ 5.000,00', multaAplicada:'Sim', reembolso:'R$ 5.000,00', pagamentoRealizado:false,
+    status:'Aguardando Reembolso', servico:'Pacote completo',
+    observacoes:'Processo Procon aberto.',
+    historico:[
+      { data:dAgo(29), usuario:'Gizeli', acao:'Notificação Procon recebida.' },
+      { data:dAgo(20), usuario:'Gizeli', acao:'Resposta enviada ao Procon.' },
+      { data:dAgo(16), usuario:'Gizeli', acao:'Audiência de conciliação agendada.' },
+    ]},
+  { id:'T007', dataReclamacao:dAgo(12), dataAtendimento:dAgo(11), ultimaAtualizacao:dAgo(11),
+    canal:'WhatsApp', nomeCliente:'Paula Ribeiro Dantas', cpf:'567.890.123-45', email:'paula@email.com', telefone:'(51) 96789-0123',
+    fase:'Contato com cliente', responsavel:'u3',
+    motivo:'Insatisfação com resultados', prioridade:'alta', unidade:'Porto Alegre - Pátio 24', tipoUnidade:'FR',
+    valorPago:'R$ 2.800,00', pagamentoRealizado:false,
+    status:'Em andamento', servico:'Depilação definitiva',
+    observacoes:'Cliente alega que após 8 sessões não houve resultado satisfatório.',
+    historico:[
+      { data:dAgo(11), usuario:'Renata', acao:'Ticket aberto. Solicitando laudo técnico.' },
+    ]},
+  { id:'T008', dataReclamacao:dAgo(45), dataAtendimento:dAgo(44), ultimaAtualizacao:dAgo(5),
+    canal:'Sults', nomeCliente:'Joice Alves de Souza Pereira', cpf:'149.471.067-60', email:'joice@email.com', telefone:'(21) 94321-0987',
+    fase:'Concluído', responsavel:'u2', sults:'9161',
+    motivo:'Ausência de resultados', prioridade:'media', unidade:'Rio de Janeiro - Norte Shopping', tipoUnidade:'FR',
+    valorPago:'R$ 2.100,00', pagamentoRealizado:false,
+    status:'Resolvido', servico:'Full Face',
+    observacoes:'Sessões de reposição oferecidas e aceitas.',
+    historico:[
+      { data:dAgo(44), usuario:'Liliane', acao:'Ticket aberto.' },
+      { data:dAgo(30), usuario:'Liliane', acao:'Laudo técnico enviado.' },
+      { data:dAgo(5),  usuario:'Liliane', acao:'Acordo fechado: 3 sessões extras. Encerrado.' },
+    ]},
+  { id:'T009', dataReclamacao:dAgo(3), dataAtendimento:dAgo(2), ultimaAtualizacao:dAgo(2),
+    canal:'Instagram', nomeCliente:'Mariana Costa Ferreira', cpf:'678.901.234-56', email:'mariana@email.com', telefone:'(11) 93210-9876',
+    fase:'Novo', responsavel:'u2',
+    motivo:'Venda Indevida', prioridade:'alta', unidade:'São Paulo - SP Market Shopping', tipoUnidade:'FR',
+    valorPago:'R$ 3.600,00', pagamentoRealizado:false,
+    status:'Em andamento', servico:'Pacote premium',
+    observacoes:'Cliente diz que foi induzida a comprar pacote sem esclarecimento.',
+    historico:[{ data:dAgo(2), usuario:'Tatiana', acao:'Ticket recebido via Instagram DM.' }]},
+  { id:'T010', dataReclamacao:dAgo(7), dataAtendimento:dAgo(6), ultimaAtualizacao:dAgo(6),
+    canal:'E-mail', nomeCliente:'Débora Lins Cavalcante', cpf:'789.012.345-67', email:'debora@email.com', telefone:'(81) 92109-8765',
+    fase:'Aguardando retorno interno', responsavel:'u3',
+    motivo:'BEMP (plataforma)', prioridade:'media', unidade:'Jaboatão dos Guararapes - Guararapes Shopping', tipoUnidade:'FR',
+    valorPago:'R$ 1.500,00', pagamentoRealizado:false,
+    status:'Em andamento', servico:'Depilação',
+    observacoes:'Erro na plataforma BEMP impedindo agendamento.',
+    historico:[
+      { data:dAgo(6), usuario:'Taynara', acao:'Ticket aberto. Encaminhado ao setor técnico.' },
+    ]},
+];
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+
+function genId() {
+  return 'T' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2,3).toUpperCase();
+}
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+
+function save(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
+function daysSince(d) {
+  if (!d) return 0;
+  return Math.floor((new Date() - new Date(d + 'T00:00:00')) / 86400000);
+}
+
+function isOverdue(t) {
+  if (['Concluído','Resolvido','Encerrado / Sem Retorno'].includes(t.status)) return false;
+  const sla = t.fase === 'Em pagamento' ? SLA_PAYMENT : SLA_NORMAL;
+  return daysSince(t.ultimaAtualizacao) > sla;
+}
+
+function prioColor(k) {
+  return PRIORIDADES.find(p => p.key === k)?.color || 'bg-gray-100 text-gray-600';
+}
+
+function prioLabel(k) {
+  return PRIORIDADES.find(p => p.key === k)?.label || 'Média';
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+}
+
+function calcScore(tickets, uid) {
+  const mine = tickets.filter(t => t.responsavel === uid);
+  if (!mine.length) return 100;
+  let s = 100;
+  mine.forEach(t => {
+    if (['Concluído','Resolvido'].includes(t.status)) s += 2;
+    else if (isOverdue(t)) s -= (t.fase === 'Em pagamento' ? 10 : 5);
+  });
+  return Math.max(0, Math.min(100, s));
+}
+
+// ── UI ATOMS ───────────────────────────────────────────────────────────────
+
+function Badge({ label, color = 'bg-gray-100 text-gray-600' }) {
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${color}`}>{label}</span>;
+}
+
+function Inp({ label, ...p }) {
+  return (
+    <div>
+      {label && <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>}
+      <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" {...p} />
+    </div>
+  );
+}
+
+function Sel({ label, options, ...p }) {
+  return (
+    <div>
+      {label && <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>}
+      <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400" {...p}>
+        {options.map(o => typeof o === 'string'
+          ? <option key={o} value={o}>{o}</option>
+          : <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function Txt({ label, ...p }) {
+  return (
+    <div>
+      {label && <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>}
+      <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" rows={3} {...p} />
+    </div>
+  );
+}
+
+function Modal({ open, onClose, title, children, size = 'lg' }) {
+  if (!open) return null;
+  const w = { sm:'max-w-sm', md:'max-w-md', lg:'max-w-2xl', xl:'max-w-4xl', full:'max-w-6xl' }[size];
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-auto">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${w} mt-8 fade-in`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <h3 className="font-semibold text-gray-800">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <div className="px-5 py-4 max-h-[80vh] overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ title, value, sub, color, icon }) {
+  const c = { purple:'bg-purple-50 border-purple-200 text-purple-700', blue:'bg-blue-50 border-blue-200 text-blue-700',
+               green:'bg-green-50 border-green-200 text-green-700', red:'bg-red-50 border-red-200 text-red-700',
+               yellow:'bg-yellow-50 border-yellow-200 text-yellow-700' }[color] || 'bg-gray-50 border-gray-200 text-gray-700';
+  return (
+    <div className={`rounded-xl border p-4 ${c}`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium opacity-60 uppercase tracking-wide">{title}</p>
+          <p className="text-3xl font-bold mt-1">{value}</p>
+          {sub && <p className="text-xs mt-1 opacity-60">{sub}</p>}
+        </div>
+        <span className="text-3xl opacity-30">{icon}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── LOGIN ──────────────────────────────────────────────────────────────────
+
+function LoginPage({ users, onLogin }) {
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [err, setErr] = useState('');
+  const [show, setShow] = useState(false);
+
+  const submit = e => {
+    e.preventDefault();
+    const u = users.find(x => x.email === email && x.senha === senha && x.ativo);
+    u ? onLogin(u) : setErr('E-mail ou senha incorretos.');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 fade-in">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-600 text-white text-xl font-bold mb-4 shadow-lg">L&C</div>
+          <h1 className="text-2xl font-bold text-gray-800">Gestão SAC</h1>
+          <p className="text-gray-400 text-sm mt-1">Sistema de Gestão de Atendimento</p>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="seu@email.com" required
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+            <div className="relative">
+              <input type={show ? 'text' : 'password'} value={senha} onChange={e => setSenha(e.target.value)}
+                placeholder="••••••••" required
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              <button type="button" onClick={() => setShow(!show)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs hover:text-gray-600">
+                {show ? 'Ocultar' : 'Ver'}
+              </button>
+            </div>
+          </div>
+          {err && <p className="text-red-500 text-sm bg-red-50 rounded-lg p-3">{err}</p>}
+          <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg transition-colors">
+            Entrar
+          </button>
+        </form>
+        <p className="text-center text-xs text-gray-400 mt-6">Laser Company Brasil · v1.0</p>
+      </div>
+    </div>
+  );
+}
+
+// ── SIDEBAR ────────────────────────────────────────────────────────────────
+
+function Sidebar({ view, setView, user, onLogout }) {
+  const links = [
+    { id:'dashboard', icon:'📊', label:'Dashboard' },
+    { id:'tickets',   icon:'🎫', label:'Chamados' },
+    { id:'kanban',    icon:'📋', label:'Kanban' },
+    { id:'whatsapp',  icon:'💬', label:'Triagem WhatsApp' },
+    { id:'reports',   icon:'📈', label:'Relatórios' },
+    { id:'atendentes',icon:'👥', label:'Atendentes' },
+    { id:'premiacao', icon:'🏆', label:'Premiação' },
+    { id:'importar',  icon:'📥', label:'Importar Leads' },
+    ...(user?.role === 'admin' ? [{ id:'settings', icon:'⚙️', label:'Configurações' }] : []),
+  ];
+
+  return (
+    <div className="w-52 min-h-screen bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow">L&C</div>
+          <div>
+            <p className="text-sm font-bold text-gray-800">Gestão SAC</p>
+            <p className="text-xs text-gray-400">Laser&Co</p>
+          </div>
+        </div>
+      </div>
+      <nav className="flex-1 p-2.5 space-y-0.5">
+        {links.map(l => (
+          <button key={l.id} onClick={() => setView(l.id)}
+            className={`sidebar-link ${view === l.id ? 'active' : ''}`}>
+            <span>{l.icon}</span><span>{l.label}</span>
+          </button>
+        ))}
+      </nav>
+      <div className="p-3 border-t border-gray-100">
+        <div className="flex items-center gap-2 px-1 mb-2">
+          <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+            {user?.avatar}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-700 truncate">{user?.nome}</p>
+            <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
+          </div>
+        </div>
+        <button onClick={onLogout} className="w-full text-xs text-gray-500 hover:text-red-500 py-1.5 px-2 rounded-lg hover:bg-red-50 transition-colors text-left">
+          Sair
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────
+
+function DashboardPage({ tickets, users }) {
+  const r1 = useRef(null), r2 = useRef(null), r3 = useRef(null), r4 = useRef(null);
+
+  const stats = useMemo(() => {
+    const total = tickets.length;
+    const abertos = tickets.filter(t => !['Concluído','Resolvido','Encerrado / Sem Retorno'].includes(t.status)).length;
+    const concluidos = tickets.filter(t => ['Concluído','Resolvido'].includes(t.status)).length;
+    const atrasados = tickets.filter(t => isOverdue(t)).length;
+    const criticos = tickets.filter(t => t.prioridade === 'critica' && !['Concluído','Resolvido'].includes(t.status)).length;
+    return { total, abertos, concluidos, atrasados, criticos };
+  }, [tickets]);
+
+  useEffect(() => {
+    const COLORS = ['#9333ea','#a855f7','#c084fc','#d8b4fe','#ec4899','#f472b6','#fb7185','#fdba74'];
+
+    // Monthly
+    const mc = {};
+    tickets.forEach(t => { const k = t.dataReclamacao?.slice(0,7); if(k) mc[k] = (mc[k]||0)+1; });
+    const months = Object.keys(mc).sort().slice(-6);
+    const mn = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    if (r1.current) {
+      if (r1.current._c) r1.current._c.destroy();
+      r1.current._c = new Chart(r1.current.getContext('2d'), {
+        type:'line',
+        data:{ labels: months.map(m => mn[+m.split('-')[1]]+'/'+m.split('-')[0].slice(2)),
+               datasets:[{ label:'Chamados', data:months.map(m=>mc[m]), borderColor:'#9333ea', backgroundColor:'rgba(147,51,234,0.08)', fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:'#9333ea' }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{stepSize:1}}} }
+      });
+    }
+
+    // Motivos
+    const motC = {};
+    tickets.forEach(t => { if(t.motivo) motC[t.motivo] = (motC[t.motivo]||0)+1; });
+    const topMot = Object.entries(motC).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    if (r2.current) {
+      if (r2.current._c) r2.current._c.destroy();
+      r2.current._c = new Chart(r2.current.getContext('2d'), {
+        type:'doughnut',
+        data:{ labels:topMot.map(([m])=>m), datasets:[{ data:topMot.map(([,c])=>c), backgroundColor:COLORS }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ font:{size:10}, boxWidth:12 } } } }
+      });
+    }
+
+    // Unidades
+    const uc = {};
+    tickets.forEach(t => { if(t.unidade) uc[t.unidade] = (uc[t.unidade]||0)+1; });
+    const topU = Object.entries(uc).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    if (r3.current) {
+      if (r3.current._c) r3.current._c.destroy();
+      r3.current._c = new Chart(r3.current.getContext('2d'), {
+        type:'bar',
+        data:{ labels:topU.map(([u])=>u.split(' - ').slice(-1)[0]),
+               datasets:[{ label:'Chamados', data:topU.map(([,c])=>c), backgroundColor:'#9333ea', borderRadius:4 }] },
+        options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+                  plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+      });
+    }
+
+    // Atendentes
+    const atend = users.filter(u => u.role === 'atendente' && u.ativo);
+    if (r4.current) {
+      if (r4.current._c) r4.current._c.destroy();
+      r4.current._c = new Chart(r4.current.getContext('2d'), {
+        type:'bar',
+        data:{
+          labels: atend.map(u => u.nome),
+          datasets:[
+            { label:'Total',      data:atend.map(u => tickets.filter(t=>t.responsavel===u.id).length), backgroundColor:'#c084fc', borderRadius:4 },
+            { label:'Concluídos', data:atend.map(u => tickets.filter(t=>t.responsavel===u.id&&['Concluído','Resolvido'].includes(t.status)).length), backgroundColor:'#7c3aed', borderRadius:4 },
+          ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{font:{size:10},boxWidth:12}}}, scales:{y:{beginAtZero:true}} }
+      });
+    }
+  }, [tickets, users]);
+
+  const overdueTix = tickets.filter(t => isOverdue(t));
+
+  return (
+    <div className="p-6 space-y-5 fade-in">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">Dashboard</h2>
+        <p className="text-xs text-gray-400">{new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard title="Total de Chamados" value={stats.total}    sub="Todos os registros" color="purple" icon="📋" />
+        <KpiCard title="Em Andamento"       value={stats.abertos} sub="Aguardando resolução" color="blue"   icon="⏳" />
+        <KpiCard title="Concluídos"         value={stats.concluidos} sub="Resolvidos"       color="green"  icon="✅" />
+        <KpiCard title="Em Atraso"          value={stats.atrasados} sub={`${stats.criticos} críticos ativos`} color="red" icon="⚠️" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Chamados por Mês</h3>
+          <div style={{height:180}}><canvas ref={r1}></canvas></div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Motivos</h3>
+          <div style={{height:180}}><canvas ref={r2}></canvas></div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Top Unidades</h3>
+          <div style={{height:210}}><canvas ref={r3}></canvas></div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Atendentes</h3>
+          <div style={{height:210}}><canvas ref={r4}></canvas></div>
+        </div>
+      </div>
+
+      {overdueTix.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-red-700 mb-3">⚠️ Chamados em Atraso ({overdueTix.length})</h3>
+          <div className="space-y-2">
+            {overdueTix.slice(0,5).map(t => (
+              <div key={t.id} className="flex items-center justify-between text-sm bg-white rounded-lg p-2.5 border border-red-100">
+                <span className="font-medium text-gray-700">{t.nomeCliente}</span>
+                <span className="text-gray-400 text-xs">{t.unidade?.split(' - ').pop()}</span>
+                <span className="text-red-600 font-medium text-xs">{daysSince(t.ultimaAtualizacao)} dias sem atualização</span>
+              </div>
+            ))}
+            {overdueTix.length > 5 && <p className="text-xs text-red-500 text-center">+{overdueTix.length-5} outros em atraso</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── REPORTS ────────────────────────────────────────────────────────────────
+
+function ReportsPage({ tickets, users }) {
+  const r1 = useRef(null), r2 = useRef(null), r3 = useRef(null);
+  const [period, setPeriod] = useState('30');
+
+  const filtered = useMemo(() => {
+    const days = parseInt(period);
+    return tickets.filter(t => daysSince(t.dataReclamacao) <= days);
+  }, [tickets, period]);
+
+  useEffect(() => {
+    // Status pie
+    const sc = {};
+    filtered.forEach(t => sc[t.status] = (sc[t.status]||0)+1);
+    const statuses = Object.entries(sc);
+    const COLORS = ['#9333ea','#22c55e','#f59e0b','#ef4444','#3b82f6','#6b7280'];
+    if (r1.current) {
+      if (r1.current._c) r1.current._c.destroy();
+      r1.current._c = new Chart(r1.current.getContext('2d'), {
+        type:'pie',
+        data:{ labels:statuses.map(([s])=>s), datasets:[{data:statuses.map(([,c])=>c), backgroundColor:COLORS}] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:12}}} }
+      });
+    }
+
+    // FR vs PR
+    const fr = filtered.filter(t=>t.tipoUnidade==='FR').length;
+    const pr = filtered.filter(t=>t.tipoUnidade==='PR').length;
+    if (r2.current) {
+      if (r2.current._c) r2.current._c.destroy();
+      r2.current._c = new Chart(r2.current.getContext('2d'), {
+        type:'doughnut',
+        data:{ labels:['Franquia','Própria'], datasets:[{data:[fr,pr], backgroundColor:['#9333ea','#06b6d4']}] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{font:{size:11}}}} }
+      });
+    }
+
+    // Canal
+    const cc = {};
+    filtered.forEach(t => { if(t.canal) cc[t.canal] = (cc[t.canal]||0)+1; });
+    const canais = Object.entries(cc).sort((a,b)=>b[1]-a[1]);
+    if (r3.current) {
+      if (r3.current._c) r3.current._c.destroy();
+      r3.current._c = new Chart(r3.current.getContext('2d'), {
+        type:'bar',
+        data:{ labels:canais.map(([c])=>c), datasets:[{label:'Chamados',data:canais.map(([,n])=>n), backgroundColor:'#c084fc',borderRadius:4}] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+      });
+    }
+  }, [filtered]);
+
+  const avgResolution = useMemo(() => {
+    const resolved = filtered.filter(t => ['Concluído','Resolvido'].includes(t.status));
+    if (!resolved.length) return 0;
+    const days = resolved.map(t => {
+      const a = new Date(t.dataReclamacao+'T00:00:00');
+      const b = new Date(t.ultimaAtualizacao+'T00:00:00');
+      return Math.max(0, (b-a)/86400000);
+    });
+    return (days.reduce((a,b)=>a+b,0)/days.length).toFixed(1);
+  }, [filtered]);
+
+  const slaOk = filtered.filter(t => !isOverdue(t) && ['Concluído','Resolvido'].includes(t.status)).length;
+  const slaTotal = filtered.filter(t => ['Concluído','Resolvido'].includes(t.status)).length;
+
+  return (
+    <div className="p-6 space-y-5 fade-in">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">Relatórios</h2>
+        <select value={period} onChange={e=>setPeriod(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="60">Últimos 60 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="9999">Tudo</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <KpiCard title="Chamados no Período" value={filtered.length} color="purple" icon="📋" />
+        <KpiCard title="Tempo Médio Resolução" value={`${avgResolution}d`} sub="dias" color="blue" icon="⏱" />
+        <KpiCard title="Taxa SLA Cumprido" value={slaTotal ? `${Math.round(slaOk/slaTotal*100)}%` : '—'} sub="dos resolvidos no prazo" color="green" icon="🎯" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Status dos Chamados</h3>
+          <div style={{height:200}}><canvas ref={r1}></canvas></div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Franquia vs Própria</h3>
+          <div style={{height:200}}><canvas ref={r2}></canvas></div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Canais de Entrada</h3>
+          <div style={{height:200}}><canvas ref={r3}></canvas></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TICKET FORM ────────────────────────────────────────────────────────────
+
+function TicketForm({ ticket, users, onSave, onCancel, currentUser, motivos }) {
+  const blank = {
+    id: genId(), dataReclamacao: new Date().toISOString().split('T')[0],
+    dataAtendimento: new Date().toISOString().split('T')[0],
+    ultimaAtualizacao: new Date().toISOString().split('T')[0],
+    canal:'WhatsApp', nomeCliente:'', cpf:'', email:'', telefone:'',
+    fase:'Novo', responsavel: currentUser?.id || '',
+    ticketBlip:'', sults:'', idReclameAqui:'', numeroProcon:'',
+    motivo: motivos[0], protocolo:'', areaReclamada:'', prioridade:'media',
+    unidade: UNIDADES[0], tipoUnidade:'FR', valorPago:'', multaAplicada:'Não',
+    reembolso:'', pagamentoRealizado:false, valorRetido:'', dataReembolso:'',
+    status:'Em andamento', servico:'', observacoes:'', historico:[],
+  };
+  const [f, setF] = useState(ticket || blank);
+  const s = (k, v) => setF(x => ({...x, [k]: v}));
+  const atend = users.filter(u => u.role === 'atendente' && u.ativo);
+
+  const submit = e => {
+    e.preventDefault();
+    const saved = { ...f, ultimaAtualizacao: new Date().toISOString().split('T')[0],
+      historico: f.historico.length ? f.historico : [{data: new Date().toISOString().split('T')[0], usuario: currentUser.nome, acao:'Chamado criado.'}] };
+    onSave(saved);
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-5">
+      <div className="grid grid-cols-2 gap-3">
+        <Inp label="Data Reclamação *" type="date" value={f.dataReclamacao} onChange={e=>s('dataReclamacao',e.target.value)} required />
+        <Inp label="Data Atendimento" type="date" value={f.dataAtendimento} onChange={e=>s('dataAtendimento',e.target.value)} />
+      </div>
+
+      <fieldset className="border border-gray-200 rounded-xl p-4 space-y-3">
+        <legend className="text-xs font-semibold text-gray-600 px-1">👤 Dados do Cliente</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <Inp label="Nome Completo *" value={f.nomeCliente} onChange={e=>s('nomeCliente',e.target.value)} required />
+          <Inp label="CPF" value={f.cpf} onChange={e=>s('cpf',e.target.value)} placeholder="000.000.000-00" />
+          <Inp label="E-mail" type="email" value={f.email} onChange={e=>s('email',e.target.value)} />
+          <Inp label="WhatsApp" value={f.telefone} onChange={e=>s('telefone',e.target.value)} placeholder="(00) 00000-0000" />
+        </div>
+      </fieldset>
+
+      <fieldset className="border border-gray-200 rounded-xl p-4 space-y-3">
+        <legend className="text-xs font-semibold text-gray-600 px-1">📍 Atendimento</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <Sel label="Canal *" options={CANAIS} value={f.canal} onChange={e=>s('canal',e.target.value)} />
+          <Sel label="Unidade *" options={UNIDADES} value={f.unidade} onChange={e=>s('unidade',e.target.value)} />
+          <Sel label="Tipo" options={[{value:'FR',label:'Franquia'},{value:'PR',label:'Própria'}]} value={f.tipoUnidade} onChange={e=>s('tipoUnidade',e.target.value)} />
+          <Sel label="Motivo *" options={motivos} value={f.motivo} onChange={e=>s('motivo',e.target.value)} />
+          <Sel label="Prioridade" options={PRIORIDADES.map(p=>({value:p.key,label:p.label}))} value={f.prioridade} onChange={e=>s('prioridade',e.target.value)} />
+          <Sel label="Responsável" options={atend.map(u=>({value:u.id,label:u.nome}))} value={f.responsavel} onChange={e=>s('responsavel',e.target.value)} />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Inp label="Ticket BLIP" value={f.ticketBlip} onChange={e=>s('ticketBlip',e.target.value)} />
+          <Inp label="Sults" value={f.sults} onChange={e=>s('sults',e.target.value)} />
+          <Inp label="Reclame Aqui" value={f.idReclameAqui} onChange={e=>s('idReclameAqui',e.target.value)} />
+        </div>
+        <Inp label="Nº Procon" value={f.numeroProcon} onChange={e=>s('numeroProcon',e.target.value)} />
+      </fieldset>
+
+      <fieldset className="border border-gray-200 rounded-xl p-4 space-y-3">
+        <legend className="text-xs font-semibold text-gray-600 px-1">💰 Serviço e Valores</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <Inp label="Serviço Reclamado" value={f.servico} onChange={e=>s('servico',e.target.value)} />
+          <Inp label="Área Reclamada" value={f.areaReclamada} onChange={e=>s('areaReclamada',e.target.value)} />
+          <Inp label="Valor Pago" value={f.valorPago} onChange={e=>s('valorPago',e.target.value)} placeholder="R$ 0,00" />
+          <Inp label="Reembolso Solicitado" value={f.reembolso} onChange={e=>s('reembolso',e.target.value)} placeholder="R$ 0,00" />
+          <Sel label="Multa Aplicada?" options={['Não','Sim','Aguardando acordo']} value={f.multaAplicada} onChange={e=>s('multaAplicada',e.target.value)} />
+          <Sel label="Pagamento Realizado?" options={[{value:false,label:'Não'},{value:true,label:'Sim'}]} value={f.pagamentoRealizado} onChange={e=>s('pagamentoRealizado',e.target.value==='true')} />
+        </div>
+        {f.pagamentoRealizado === true && <Inp label="Data do Reembolso" type="date" value={f.dataReembolso} onChange={e=>s('dataReembolso',e.target.value)} />}
+      </fieldset>
+
+      <fieldset className="border border-gray-200 rounded-xl p-4 space-y-3">
+        <legend className="text-xs font-semibold text-gray-600 px-1">📈 Status</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <Sel label="Fase (Kanban)" options={FASES} value={f.fase} onChange={e=>s('fase',e.target.value)} />
+          <Sel label="Status" options={STATUS_LIST} value={f.status} onChange={e=>s('status',e.target.value)} />
+        </div>
+        <Txt label="Observações" value={f.observacoes} onChange={e=>s('observacoes',e.target.value)} rows={3} />
+      </fieldset>
+
+      <div className="flex gap-3 justify-end">
+        <button type="button" onClick={onCancel} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">Cancelar</button>
+        <button type="submit" className="px-6 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Salvar Chamado</button>
+      </div>
+    </form>
+  );
+}
+
+// ── TICKET DETAIL ──────────────────────────────────────────────────────────
+
+function TicketDetail({ ticket, users, onSave, currentUser }) {
+  const [nota, setNota] = useState('');
+  const [fase, setFase] = useState(ticket.fase);
+  const [status, setStatus] = useState(ticket.status);
+  const atend = users.find(u => u.id === ticket.responsavel);
+  const overdue = isOverdue(ticket);
+
+  const addNote = () => {
+    if (!nota.trim()) return;
+    const updated = { ...ticket, fase, status,
+      ultimaAtualizacao: new Date().toISOString().split('T')[0],
+      historico: [...(ticket.historico||[]), { data: new Date().toISOString().split('T')[0], usuario: currentUser.nome, acao: nota.trim() }]
+    };
+    onSave(updated);
+    setNota('');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-lg font-bold text-gray-800">{ticket.nomeCliente}</h3>
+            {overdue && <span className="pulse text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">⚠ ATRASADO</span>}
+          </div>
+          <p className="text-sm text-gray-400">{ticket.id} · {ticket.unidade}</p>
+        </div>
+        <div className="flex gap-2 flex-wrap justify-end">
+          <Badge label={prioLabel(ticket.prioridade)} color={prioColor(ticket.prioridade)} />
+          <Badge label={ticket.tipoUnidade==='FR'?'Franquia':'Própria'} color={ticket.tipoUnidade==='FR'?'bg-blue-100 text-blue-700':'bg-green-100 text-green-700'} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {[['Canal',ticket.canal],['Motivo',ticket.motivo],['Serviço',ticket.servico||'—'],
+          ['E-mail',ticket.email||'—'],['WhatsApp',ticket.telefone||'—'],['CPF',ticket.cpf||'—'],
+          ['Valor Pago',ticket.valorPago||'—'],['Reembolso',ticket.reembolso||'—'],['Atendente',atend?.nome||'—']
+        ].map(([k,v]) => (
+          <div key={k} className="bg-gray-50 rounded-lg p-2.5">
+            <p className="text-xs text-gray-400 mb-0.5">{k}</p>
+            <p className="text-sm font-medium text-gray-700 truncate">{v}</p>
+          </div>
+        ))}
+      </div>
+
+      {ticket.numeroProcon && <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm"><span className="font-medium text-orange-700">Nº Procon:</span> <span className="text-orange-600">{ticket.numeroProcon}</span></div>}
+      {ticket.idReclameAqui && <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm"><span className="font-medium text-blue-700">Reclame Aqui:</span> <span className="text-blue-600">{ticket.idReclameAqui}</span></div>}
+      {ticket.observacoes && (
+        <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+          <p className="text-xs font-medium text-purple-500 mb-1">Observações</p>
+          <p className="text-sm text-purple-800">{ticket.observacoes}</p>
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="text-xs text-gray-500 mb-1 block">Fase</label>
+          <select value={fase} onChange={e=>setFase(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400">
+            {FASES.map(x=><option key={x}>{x}</option>)}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="text-xs text-gray-500 mb-1 block">Status</label>
+          <select value={status} onChange={e=>setStatus(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400">
+            {STATUS_LIST.map(x=><option key={x}>{x}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">📝 Histórico</h4>
+        <div className="space-y-2 max-h-48 overflow-y-auto mb-3 pr-1">
+          {(ticket.historico||[]).length === 0 && <p className="text-xs text-gray-400">Sem histórico.</p>}
+          {(ticket.historico||[]).map((h,i) => (
+            <div key={i} className="flex gap-3 text-sm border-l-2 border-purple-100 pl-3 pb-2">
+              <div>
+                <p className="text-xs text-gray-400">{fmtDate(h.data)} · <span className="text-purple-500">{h.usuario}</span></p>
+                <p className="text-gray-700">{h.acao}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <textarea value={nota} onChange={e=>setNota(e.target.value)}
+            placeholder="Adicionar atualização..."
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400"
+            rows={2} />
+          <button onClick={addNote} className="px-4 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 self-stretch">Salvar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TICKETS PAGE ───────────────────────────────────────────────────────────
+
+function TicketsPage({ tickets, users, onSave, onDelete, currentUser, motivos }) {
+  const [detail, setDetail] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [newT, setNewT] = useState(false);
+  const [f, setF] = useState({ q:'', motivo:'', responsavel:'', status:'', tipo:'' });
+  const [selected, setSelected] = useState(new Set());           // ids selecionados
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkFase, setBulkFase] = useState('');
+  const [bulkResp, setBulkResp] = useState('');
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const atend = users.filter(u => u.role === 'atendente');
+  const ff = k => v => setF(x => ({...x, [k]:v}));
+
+  const list = useMemo(() => tickets.filter(t => {
+    if (f.q && ![t.nomeCliente,t.cpf,t.email,t.id].join(' ').toLowerCase().includes(f.q.toLowerCase())) return false;
+    if (f.motivo && t.motivo !== f.motivo) return false;
+    if (f.responsavel && t.responsavel !== f.responsavel) return false;
+    if (f.status && t.status !== f.status) return false;
+    if (f.tipo && t.tipoUnidade !== f.tipo) return false;
+    return true;
+  }), [tickets, f]);
+
+  const reset = () => { setF({ q:'', motivo:'', responsavel:'', status:'', tipo:'' }); setSelected(new Set()); };
+
+  // seleção
+  const toggleOne = id => setSelected(s => { const n = new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+  const toggleAll = () => setSelected(s => s.size === list.length ? new Set() : new Set(list.map(t=>t.id)));
+
+  // ação em lote
+  const applyBulk = () => {
+    if (!bulkStatus && !bulkFase && !bulkResp) return;
+    list.filter(t => selected.has(t.id)).forEach(t => {
+      const upd = { ...t, ultimaAtualizacao: new Date().toISOString().split('T')[0] };
+      if (bulkStatus) upd.status = bulkStatus;
+      if (bulkFase)   upd.fase   = bulkFase;
+      if (bulkResp)   upd.responsavel = bulkResp;
+      if (bulkStatus || bulkFase) {
+        upd.historico = [...(t.historico||[]), {
+          data: new Date().toISOString().split('T')[0],
+          usuario: currentUser.nome,
+          acao: `Atualização em lote — ${[bulkStatus&&`Status: ${bulkStatus}`, bulkFase&&`Fase: ${bulkFase}`, bulkResp&&`Responsável atualizado`].filter(Boolean).join(' · ')}`,
+        }];
+      }
+      onSave(upd);
+    });
+    setSelected(new Set()); setBulkStatus(''); setBulkFase(''); setBulkResp(''); setBulkOpen(false);
+  };
+
+  if (newT) return (
+    <div className="p-6 fade-in">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={()=>setNewT(false)} className="text-gray-400 hover:text-gray-600 text-lg">←</button>
+        <h2 className="text-xl font-bold text-gray-800">Novo Chamado</h2>
+      </div>
+      <TicketForm motivos={motivos} users={users} currentUser={currentUser}
+        onSave={t=>{onSave(t);setNewT(false);}} onCancel={()=>setNewT(false)} />
+    </div>
+  );
+
+  if (editing) return (
+    <div className="p-6 fade-in">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={()=>setEditing(null)} className="text-gray-400 hover:text-gray-600 text-lg">←</button>
+        <h2 className="text-xl font-bold text-gray-800">Editar Chamado</h2>
+      </div>
+      <TicketForm motivos={motivos} ticket={editing} users={users} currentUser={currentUser}
+        onSave={t=>{onSave(t);setEditing(null);}} onCancel={()=>setEditing(null)} />
+    </div>
+  );
+
+  return (
+    <div className="p-6 space-y-4 fade-in">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">Chamados <span className="text-sm font-normal text-gray-400">({list.length})</span></h2>
+        <button onClick={()=>setNewT(true)} className="bg-purple-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-purple-700 font-medium">+ Novo Chamado</button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <input value={f.q} onChange={e=>setF(x=>({...x,q:e.target.value}))} placeholder="🔍 Buscar nome, CPF, ID..."
+            className="col-span-2 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+          <select value={f.motivo} onChange={e=>ff('motivo')(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+            <option value="">Todos os motivos</option>
+            {motivos.map(m=><option key={m}>{m}</option>)}
+          </select>
+          <select value={f.responsavel} onChange={e=>ff('responsavel')(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+            <option value="">Todas as atendentes</option>
+            {atend.map(u=><option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <select value={f.status} onChange={e=>ff('status')(e.target.value)}
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+            <option value="">Todos os status</option>
+            {STATUS_LIST.map(s=><option key={s}>{s}</option>)}
+          </select>
+          <select value={f.tipo} onChange={e=>ff('tipo')(e.target.value)}
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+            <option value="">FR + Própria</option>
+            <option value="FR">Franquia</option>
+            <option value="PR">Própria</option>
+          </select>
+          <button onClick={reset} className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5">Limpar</button>
+        </div>
+      </div>
+
+      {/* ── Barra de ação em lote ─────────────────────────────── */}
+      {selected.size > 0 && (
+        <div className="sticky top-0 z-20 bg-purple-700 text-white rounded-xl p-3 flex items-center gap-3 flex-wrap shadow-lg fade-in">
+          <span className="text-sm font-semibold">{selected.size} selecionado(s)</span>
+          <button onClick={()=>setBulkOpen(!bulkOpen)}
+            className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg font-medium">
+            {bulkOpen ? '▲ Fechar' : '✏ Alterar selecionados'}
+          </button>
+          <button onClick={()=>setSelected(new Set())} className="text-xs text-purple-200 hover:text-white ml-auto">Desmarcar</button>
+
+          {bulkOpen && (
+            <div className="w-full flex flex-wrap gap-2 pt-2 border-t border-white/20">
+              <select value={bulkStatus} onChange={e=>setBulkStatus(e.target.value)}
+                className="flex-1 min-w-[160px] border-0 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-white/50">
+                <option value="">— Status —</option>
+                {STATUS_LIST.map(s=><option key={s}>{s}</option>)}
+              </select>
+              <select value={bulkFase} onChange={e=>setBulkFase(e.target.value)}
+                className="flex-1 min-w-[160px] border-0 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-white/50">
+                <option value="">— Fase (Kanban) —</option>
+                {FASES.map(s=><option key={s}>{s}</option>)}
+              </select>
+              <select value={bulkResp} onChange={e=>setBulkResp(e.target.value)}
+                className="flex-1 min-w-[140px] border-0 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-white/50">
+                <option value="">— Responsável —</option>
+                {atend.map(u=><option key={u.id} value={u.id}>{u.nome}</option>)}
+              </select>
+              <button onClick={applyBulk}
+                className="bg-white text-purple-700 font-semibold text-sm px-5 py-1.5 rounded-lg hover:bg-purple-50 transition-colors">
+                Aplicar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 w-8">
+                  <input type="checkbox"
+                    checked={list.length > 0 && selected.size === list.length}
+                    onChange={toggleAll}
+                    className="accent-purple-600 cursor-pointer" />
+                </th>
+                {['ID','Cliente','Unidade','Motivo','Atendente','Fase','Status','Prioridade','Entrada','Ações'].map(h=>(
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {list.map(t => {
+                const od = isOverdue(t);
+                const at = users.find(u=>u.id===t.responsavel);
+                const isSel = selected.has(t.id);
+                const sc = { 'Em andamento':'bg-yellow-100 text-yellow-700', 'Resolvido':'bg-green-100 text-green-700',
+                             'Concluído':'bg-green-100 text-green-700', 'Aguardando Reembolso':'bg-orange-100 text-orange-700',
+                             'Respondido':'bg-blue-100 text-blue-700', 'Encerrado / Sem Retorno':'bg-gray-100 text-gray-600' };
+                return (
+                  <tr key={t.id} className={`transition-colors cursor-default
+                    ${isSel ? 'bg-purple-50 border-l-4 border-l-purple-400' : od ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+                    <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
+                      <input type="checkbox" checked={isSel} onChange={()=>toggleOne(t.id)}
+                        className="accent-purple-600 cursor-pointer" />
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono text-gray-400 whitespace-nowrap">{t.id}</td>
+                    <td className="px-4 py-3 whitespace-nowrap" onClick={()=>setDetail(t)}>
+                      <p className="font-medium text-gray-800 hover:text-purple-700 cursor-pointer">{t.nomeCliente}</p>
+                      <p className="text-xs text-gray-400">{t.telefone}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs text-gray-600 max-w-[130px] truncate">{t.unidade}</p>
+                      <Badge label={t.tipoUnidade==='FR'?'FR':'PR'} color={t.tipoUnidade==='FR'?'bg-blue-50 text-blue-600':'bg-green-50 text-green-600'} />
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 max-w-[100px] truncate">{t.motivo}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{at?.nome||'—'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{t.fase}</td>
+                    <td className="px-4 py-3 whitespace-nowrap"><Badge label={t.status} color={sc[t.status]||'bg-gray-100 text-gray-600'} /></td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {od ? <span className="text-xs text-red-500 font-medium pulse">⚠ Atrasado</span>
+                           : <Badge label={prioLabel(t.prioridade)} color={prioColor(t.prioridade)} />}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtDate(t.dataReclamacao)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex gap-1">
+                        <button onClick={()=>setDetail(t)} className="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 font-medium">👁 Ver</button>
+                        <button onClick={()=>setEditing(t)} className="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-medium">✏ Editar</button>
+                        <button onClick={()=>{if(confirm('Excluir chamado?'))onDelete(t.id)}} className="text-xs px-2 py-1 bg-red-50 text-red-500 rounded hover:bg-red-100">🗑</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!list.length && <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">Nenhum chamado encontrado.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Modal open={!!detail} onClose={()=>setDetail(null)} title={`Chamado ${detail?.id}`} size="xl">
+        {detail && <TicketDetail ticket={detail} users={users} currentUser={currentUser}
+          onSave={t=>{onSave(t);setDetail(t);}} />}
+      </Modal>
+    </div>
+  );
+}
+
+// ── KANBAN ─────────────────────────────────────────────────────────────────
+
+function KanbanPage({ tickets, users, onSave }) {
+  const [detail, setDetail] = useState(null);
+
+  const colBorder = { 'Novo':'border-t-gray-400','Contato com cliente':'border-t-blue-400',
+    'Contato com unidade':'border-t-cyan-500','Aguardando cliente':'border-t-yellow-400',
+    'Aguardando retorno interno':'border-t-orange-400','Em pagamento':'border-t-pink-500','Concluído':'border-t-green-500' };
+
+  const colCount = useMemo(() => {
+    const c = {};
+    FASES.forEach(f => c[f] = tickets.filter(t=>t.fase===f).length);
+    return c;
+  }, [tickets]);
+
+  return (
+    <div className="p-6 fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-gray-800">Kanban</h2>
+        <div className="flex gap-3 text-xs text-gray-500">
+          <span>SLA: <strong className="text-gray-700">3 dias</strong> (geral)</span>
+          <span>SLA: <strong className="text-pink-600">15 dias</strong> (pagamento)</span>
+          <span className="text-red-500">⚠ = Atrasado</span>
+        </div>
+      </div>
+
+      <div className="kanban-board">
+        {FASES.map(col => {
+          const colTix = tickets.filter(t=>t.fase===col);
+          return (
+            <div key={col} className={`kanban-col bg-white rounded-xl border border-gray-200 border-t-4 ${colBorder[col]} p-3 flex flex-col gap-2`}>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide leading-tight">{col}</h3>
+                <span className="bg-gray-100 text-gray-600 text-xs rounded-full px-2 py-0.5">{colCount[col]}</span>
+              </div>
+              {colTix.map(t => {
+                const od = isOverdue(t);
+                const at = users.find(u=>u.id===t.responsavel);
+                const ds = daysSince(t.ultimaAtualizacao);
+                const sla = col === 'Em pagamento' ? SLA_PAYMENT : SLA_NORMAL;
+                return (
+                  <div key={t.id} onClick={()=>setDetail(t)}
+                    className={`rounded-lg border p-3 cursor-pointer hover:shadow-md transition-shadow
+                      ${od ? 'border-red-200 bg-red-50' : 'border-gray-100 bg-white'}`}>
+                    <div className="flex justify-between items-start gap-1 mb-1">
+                      <p className="text-xs font-semibold text-gray-800 leading-tight">{t.nomeCliente}</p>
+                      {od && <span className="text-red-500 text-xs pulse flex-shrink-0">⚠</span>}
+                    </div>
+                    <p className="text-xs text-gray-400 truncate mb-1">{t.unidade?.split(' - ').pop()}</p>
+                    <p className="text-xs text-purple-600 font-medium mb-2">{t.motivo}</p>
+                    <div className="flex items-center justify-between">
+                      <Badge label={prioLabel(t.prioridade)} color={prioColor(t.prioridade)} />
+                      <span className="text-xs text-gray-400">{at?.nome?.split(' ')[0]||'—'}</span>
+                    </div>
+                    <div className={`text-xs mt-1.5 ${ds > sla ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                      ⏱ {ds}d sem atualização
+                    </div>
+                  </div>
+                );
+              })}
+              {!colTix.length && (
+                <div className="flex-1 min-h-20 flex items-center justify-center">
+                  <p className="text-xs text-gray-300">Vazio</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <Modal open={!!detail} onClose={()=>setDetail(null)} title={`${detail?.id} — ${detail?.nomeCliente}`} size="xl">
+        {detail && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-2">Mover para:</p>
+              <div className="flex flex-wrap gap-2">
+                {FASES.filter(f=>f!==detail.fase).map(f=>(
+                  <button key={f} onClick={()=>{
+                    const u={...detail,fase:f,ultimaAtualizacao:new Date().toISOString().split('T')[0]};
+                    onSave(u);setDetail(u);
+                  }} className="text-xs px-3 py-1 bg-gray-100 hover:bg-purple-100 hover:text-purple-700 rounded-full transition-colors">
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <hr className="border-gray-100"/>
+            <TicketDetail ticket={detail} users={users} currentUser={{nome:'Sistema'}}
+              onSave={t=>{onSave(t);setDetail(t);}} />
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+// ── WHATSAPP INTAKE ────────────────────────────────────────────────────────
+
+function WhatsAppPage({ users, onSave, currentUser }) {
+  const steps = [
+    { field:'nomeCliente', q:'Qual é o seu nome completo?',         hint:'Ex: Maria da Silva' },
+    { field:'cpf',         q:'Qual é o seu CPF?',                    hint:'000.000.000-00' },
+    { field:'email',       q:'Qual é o seu e-mail?',                 hint:'email@email.com' },
+    { field:'telefone',    q:'Confirme o número do WhatsApp:',       hint:'(00) 00000-0000' },
+    { field:'unidade',     q:'Em qual unidade foi atendido(a)?',     type:'unidade' },
+    { field:'servico',     q:'Qual serviço você contratou?',         hint:'Ex: Depilação, Rejuvenescimento...' },
+    { field:'valorPago',   q:'Qual foi o valor pago (aproximado)?', hint:'Ex: R$ 1.500,00' },
+    { field:'motivo',      q:'Qual o motivo do seu contato?',       type:'motivo' },
+    { field:'observacoes', q:'Descreva sua situação com detalhes:',  hint:'Quanto mais detalhes, melhor!' },
+  ];
+
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState({});
+  const [msgs, setMsgs] = useState([{ from:'bot', text:'Olá! Você chegou ao SAC da Laser&Co 💜 Vou precisar de algumas informações para registrar seu chamado. Qual é o seu nome completo?' }]);
+  const [inp, setInp] = useState('');
+  const [done, setDone] = useState(false);
+  const [proto, setProto] = useState('');
+  const endRef = useRef(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }); }, [msgs]);
+
+  const send = (val) => {
+    const v = val || inp;
+    if (!v && steps[step]?.type !== 'motivo') return;
+    const nf = { ...form, [steps[step].field]: v };
+    setForm(nf);
+    const nm = [...msgs, { from:'user', text:v }];
+    if (step + 1 < steps.length) {
+      nm.push({ from:'bot', text: steps[step+1].q });
+      setStep(step+1);
+    } else {
+      const p = genId();
+      nm.push({ from:'bot', text:`✅ Obrigado pelas informações! Seu chamado foi registrado com sucesso.\n\nProtocolo: *${p}*\n\nEm breve nossa equipe entrará em contato pelo WhatsApp. 💜` });
+      const ticket = {
+        id:p, dataReclamacao:new Date().toISOString().split('T')[0],
+        dataAtendimento:new Date().toISOString().split('T')[0],
+        ultimaAtualizacao:new Date().toISOString().split('T')[0],
+        canal:'WhatsApp', ...nf, fase:'Novo', responsavel:'', prioridade:'media',
+        tipoUnidade:'FR', pagamentoRealizado:false, status:'Em andamento',
+        historico:[{data:new Date().toISOString().split('T')[0],usuario:'Bot WhatsApp',acao:'Chamado criado via triagem WhatsApp.'}]
+      };
+      onSave(ticket);
+      setProto(p);
+      setDone(true);
+    }
+    setMsgs(nm);
+    setInp('');
+  };
+
+  const reset = () => { setStep(0);setForm({});setMsgs([{from:'bot',text:'Olá! Você chegou ao SAC da Laser&Co 💜 Vou precisar de algumas informações para registrar seu chamado. Qual é o seu nome completo?'}]);setInp('');setDone(false); };
+
+  return (
+    <div className="p-6 fade-in">
+      <h2 className="text-xl font-bold text-gray-800 mb-1">Triagem via WhatsApp</h2>
+      <p className="text-sm text-gray-400 mb-5">Simule a coleta de dados pelo WhatsApp. Ao concluir, o chamado é criado automaticamente.</p>
+
+      <div className="max-w-md mx-auto shadow-xl rounded-2xl overflow-hidden border border-gray-200">
+        <div className="bg-[#075e54] p-3 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-purple-400 flex items-center justify-center text-white font-bold text-sm">L&C</div>
+          <div>
+            <p className="text-white text-sm font-semibold">Gestão SAC</p>
+            <p className="text-green-300 text-xs">Online agora</p>
+          </div>
+        </div>
+
+        <div className="bg-[#ece5dd] p-4 space-y-2.5 min-h-72 max-h-96 overflow-y-auto">
+          {msgs.map((m,i) => (
+            <div key={i} className={`flex ${m.from==='user'?'justify-end':'justify-start'}`}>
+              <div className={`max-w-xs rounded-2xl px-3.5 py-2 text-sm shadow-sm whitespace-pre-wrap
+                ${m.from==='user' ? 'bg-[#dcf8c6] text-gray-800 rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm'}`}>
+                {m.text}
+              </div>
+            </div>
+          ))}
+          <div ref={endRef}/>
+        </div>
+
+        {!done && step < steps.length && (
+          <div className="bg-[#f0f0f0] p-3 border-t border-gray-200">
+            {steps[step]?.type === 'unidade' ? (
+              <div className="flex gap-2">
+                <select value={inp} onChange={e=>setInp(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm bg-white focus:outline-none">
+                  <option value="">Selecione a unidade...</option>
+                  {UNIDADES.map(u=><option key={u}>{u}</option>)}
+                </select>
+                <button onClick={()=>inp&&send(inp)}
+                  className="bg-[#075e54] text-white rounded-full w-10 h-10 flex items-center justify-center text-lg hover:bg-green-800">▶</button>
+              </div>
+            ) : steps[step]?.type === 'motivo' ? (
+              <div>
+                <p className="text-xs text-gray-500 mb-2 text-center">Selecione o motivo:</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {MOTIVOS_DEFAULT.slice(0,-1).map(m=>(
+                    <button key={m} onClick={()=>send(m)}
+                      className="text-left text-xs bg-white hover:bg-green-100 hover:text-green-800 rounded-lg px-2.5 py-1.5 border border-gray-200 transition-colors">
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input value={inp} onChange={e=>setInp(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&send()}
+                  placeholder={steps[step]?.hint||'Digite...'}
+                  className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none bg-white" />
+                <button onClick={()=>send()}
+                  className="bg-[#075e54] text-white rounded-full w-10 h-10 flex items-center justify-center text-lg hover:bg-green-800">▶</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {done && (
+          <div className="bg-white p-4 text-center border-t space-y-2">
+            <p className="text-green-600 font-semibold text-sm">✅ Chamado #{proto} criado!</p>
+            <button onClick={reset} className="text-xs bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg">Nova triagem</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── ATENDENTES ─────────────────────────────────────────────────────────────
+
+function AtendentesPage({ tickets, users }) {
+  const atend = users.filter(u => u.role === 'atendente' && u.ativo);
+
+  const data = atend.map(u => {
+    const mine = tickets.filter(t=>t.responsavel===u.id);
+    const done = mine.filter(t=>['Concluído','Resolvido'].includes(t.status));
+    const open = mine.filter(t=>!['Concluído','Resolvido','Encerrado / Sem Retorno'].includes(t.status));
+    const late = mine.filter(t=>isOverdue(t));
+    const score = calcScore(tickets, u.id);
+    const avgD = done.length ? (done.map(t=>{
+      const a=new Date(t.dataReclamacao+'T00:00:00'), b=new Date(t.ultimaAtualizacao+'T00:00:00');
+      return Math.max(0,(b-a)/86400000);
+    }).reduce((a,b)=>a+b,0)/done.length).toFixed(1) : '—';
+    const taxa = mine.length ? Math.round(done.length/mine.length*100) : 0;
+    return { ...u, mine, done, open, late, score, avgD, taxa };
+  });
+
+  const sc = s => s>=90?'text-green-600':s>=70?'text-yellow-600':s>=50?'text-orange-600':'text-red-600';
+  const sb = s => s>=90?'bg-green-500':s>=70?'bg-yellow-500':s>=50?'bg-orange-500':'bg-red-500';
+
+  return (
+    <div className="p-6 space-y-4 fade-in">
+      <h2 className="text-xl font-bold text-gray-800">Desempenho das Atendentes</h2>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+        <strong>Fórmula de pontuação:</strong> Base 100pts · +2pts por chamado concluído no prazo · -5pts por atraso (&gt;3 dias) · -10pts por pagamento em atraso (&gt;15 dias) · Mínimo: 0 · Máximo: 100+bônus
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {data.map(u => (
+          <div key={u.id} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold">{u.avatar}</div>
+                <div>
+                  <p className="font-semibold text-gray-800">{u.nome}</p>
+                  <p className="text-xs text-gray-400">{u.email}</p>
+                </div>
+              </div>
+              <div className="text-center bg-gray-50 rounded-xl px-3 py-2">
+                <p className="text-xs text-gray-400">Nota</p>
+                <p className={`text-2xl font-bold ${sc(u.score)}`}>{u.score}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 text-center">
+              {[['Total',u.mine.length,'bg-gray-50 text-gray-700'],['Abertos',u.open.length,'bg-blue-50 text-blue-600'],
+                ['Concluídos',u.done.length,'bg-green-50 text-green-600'],['Atrasados',u.late.length,'bg-red-50 text-red-600']].map(([l,v,c])=>(
+                <div key={l} className={`${c} rounded-lg p-2`}>
+                  <p className="text-xl font-bold">{v}</p>
+                  <p className="text-xs text-gray-400">{l}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Taxa resolução: <strong className="text-gray-800">{u.taxa}%</strong></span>
+              <span>Tempo médio: <strong className="text-gray-800">{u.avgD} dias</strong></span>
+            </div>
+
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className={`h-2 rounded-full transition-all ${sb(u.score)}`} style={{width:`${Math.min(100,u.score)}%`}} />
+            </div>
+
+            {u.late.length > 0 && (
+              <div className="bg-red-50 border border-red-100 rounded-lg p-2.5">
+                <p className="text-xs font-semibold text-red-600 mb-1">Em atraso:</p>
+                {u.late.slice(0,3).map(t=>(
+                  <p key={t.id} className="text-xs text-red-500">· {t.nomeCliente} — {daysSince(t.ultimaAtualizacao)}d sem atualização</p>
+                ))}
+                {u.late.length > 3 && <p className="text-xs text-red-400">+{u.late.length-3} outros</p>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── SETTINGS ───────────────────────────────────────────────────────────────
+
+function SettingsPage({ users, onUpdateUsers, motivos, onUpdateMotivos }) {
+  const [tab, setTab] = useState('users');
+  const [showNew, setShowNew] = useState(false);
+  const [nU, setNU] = useState({ nome:'', email:'', senha:'', role:'atendente', ativo:true });
+  const [newM, setNewM] = useState('');
+
+  const saveUser = () => {
+    if (!nU.nome||!nU.email||!nU.senha) return alert('Preencha nome, e-mail e senha.');
+    const u = { ...nU, id:'u'+Date.now(), avatar:nU.nome.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2) };
+    onUpdateUsers([...users, u]);
+    setNU({ nome:'', email:'', senha:'', role:'atendente', ativo:true });
+    setShowNew(false);
+  };
+
+  const addMotivo = () => {
+    if (!newM.trim()||motivos.includes(newM.trim())) return;
+    onUpdateMotivos([...motivos, newM.trim()]);
+    setNewM('');
+  };
+
+  return (
+    <div className="p-6 space-y-4 fade-in">
+      <h2 className="text-xl font-bold text-gray-800">Configurações <span className="text-xs font-normal text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full">Admin</span></h2>
+
+      <div className="flex gap-1 border-b border-gray-200">
+        {[['users','👥 Usuários'],['motivos','📌 Motivos'],['sla','⏱ SLA & Regras']].map(([k,l])=>(
+          <button key={k} onClick={()=>setTab(k)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${tab===k?'border-purple-600 text-purple-700':'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'users' && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button onClick={()=>setShowNew(!showNew)} className="bg-purple-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-purple-700 font-medium">+ Novo Usuário</button>
+          </div>
+          {showNew && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700">Novo Usuário</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <Inp label="Nome *" value={nU.nome} onChange={e=>setNU(x=>({...x,nome:e.target.value}))} />
+                <Inp label="E-mail *" type="email" value={nU.email} onChange={e=>setNU(x=>({...x,email:e.target.value}))} />
+                <Inp label="Senha *" value={nU.senha} onChange={e=>setNU(x=>({...x,senha:e.target.value}))} />
+                <Sel label="Perfil" options={[{value:'atendente',label:'Atendente'},{value:'admin',label:'Administrador'}]} value={nU.role} onChange={e=>setNU(x=>({...x,role:e.target.value}))} />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={saveUser} className="bg-purple-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-purple-700">Criar</button>
+                <button onClick={()=>setShowNew(false)} className="text-sm px-4 py-2 rounded-lg border border-gray-300 text-gray-600">Cancelar</button>
+              </div>
+            </div>
+          )}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>{['Nome','E-mail','Perfil','Status','Ações'].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>)}</tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {users.map(u=>(
+                  <tr key={u.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">{u.nome}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{u.email}</td>
+                    <td className="px-4 py-3"><Badge label={u.role==='admin'?'Admin':'Atendente'} color={u.role==='admin'?'bg-purple-100 text-purple-700':'bg-gray-100 text-gray-600'} /></td>
+                    <td className="px-4 py-3"><Badge label={u.ativo?'Ativo':'Inativo'} color={u.ativo?'bg-green-100 text-green-700':'bg-red-100 text-red-600'} /></td>
+                    <td className="px-4 py-3">
+                      {u.role !== 'admin' && (
+                        <button onClick={()=>onUpdateUsers(users.map(x=>x.id===u.id?{...x,ativo:!x.ativo}:x))}
+                          className={`text-xs px-3 py-1 rounded-lg ${u.ativo?'bg-red-50 text-red-500 hover:bg-red-100':'bg-green-50 text-green-600 hover:bg-green-100'}`}>
+                          {u.ativo?'Desativar':'Ativar'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'motivos' && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input value={newM} onChange={e=>setNewM(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addMotivo()}
+              placeholder="Novo motivo de chamado..."
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            <button onClick={addMotivo} className="bg-purple-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-purple-700">Adicionar</button>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 grid grid-cols-2 gap-2">
+            {motivos.map(m=>(
+              <div key={m} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                <span className="text-gray-700">{m}</span>
+                <button onClick={()=>onUpdateMotivos(motivos.filter(x=>x!==m))} className="text-red-400 hover:text-red-600 text-xs ml-2">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'sla' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">⏱ SLA Padrão</h4>
+              <p className="text-3xl font-bold text-gray-800">{SLA_NORMAL} dias</p>
+              <p className="text-xs text-gray-400 mt-1">Prazo máximo sem atualização por fase</p>
+            </div>
+            <div className="bg-white rounded-xl border border-pink-200 p-4">
+              <h4 className="text-sm font-semibold text-pink-700 mb-2">💳 SLA Pagamento</h4>
+              <p className="text-3xl font-bold text-pink-700">{SLA_PAYMENT} dias</p>
+              <p className="text-xs text-gray-400 mt-1">Prazo para chamados na fase "Em pagamento"</p>
+            </div>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700 space-y-2">
+            <p className="font-semibold">Regras de negócio ativas:</p>
+            <ul className="space-y-1 text-xs list-disc list-inside">
+              <li>Chamados sem atualização por mais de 3 dias aparecem como <strong>Em Atraso</strong> (vermelho) no Kanban e Dashboard</li>
+              <li>Chamados na fase <strong>"Em pagamento"</strong> têm SLA de 15 dias</li>
+              <li>Nota da atendente é afetada a cada atraso detectado automaticamente</li>
+              <li>Chamados críticos (Procon, Reclame Aqui) devem ser priorizados</li>
+              <li>Distribuição manual de chamados pelo administrador</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PREMIAÇÃO ──────────────────────────────────────────────────────────────
+
+function PremiacaoPage({ tickets, users }) {
+  const [period, setPeriod] = useState('month');
+  const [editCrit, setEditCrit] = useState(false);
+  const [editPrizes, setEditPrizes] = useState(false);
+  const [criteria, setCriteria] = useState(() => load('lco_criteria', {
+    pesoResolvidos: 40, pesoSLA: 30, pesoTempo: 20, pesoSemAtraso: 10,
+  }));
+  const [prizes, setPrizes] = useState(() => load('lco_prizes', {
+    p1: 'Vale presente R$ 200,00', p2: 'Vale presente R$ 100,00', p3: 'Reconhecimento especial',
+  }));
+
+  useEffect(() => { save('lco_criteria', criteria); }, [criteria]);
+  useEffect(() => { save('lco_prizes', prizes); }, [prizes]);
+
+  const ranking = useMemo(() => {
+    const atend = users.filter(u => u.role === 'atendente' && u.ativo);
+    const days = period === 'week' ? 7 : period === 'month' ? 30 : 9999;
+    const pTix = tickets.filter(t => daysSince(t.dataReclamacao) <= days);
+
+    const total = criteria.pesoResolvidos + criteria.pesoSLA + criteria.pesoTempo + criteria.pesoSemAtraso || 1;
+
+    return atend.map(u => {
+      const mine = pTix.filter(t => t.responsavel === u.id);
+      const resolved = mine.filter(t => ['Concluído','Resolvido'].includes(t.status));
+      const late = mine.filter(t => isOverdue(t));
+
+      // M1: resolvidos (cada 1 vale 10 pontos, cap 100)
+      const m1 = Math.min(100, resolved.length * 10);
+      // M2: SLA compliance 0-100
+      const m2 = resolved.length ? Math.round(resolved.filter(t => !isOverdue(t)).length / resolved.length * 100) : (mine.length ? 0 : 100);
+      // M3: tempo médio (100 = 0 dias, -5 por dia médio)
+      let m3 = 100;
+      if (resolved.length) {
+        const avg = resolved.map(t => Math.max(0,(new Date(t.ultimaAtualizacao+'T00:00:00')-new Date(t.dataReclamacao+'T00:00:00'))/86400000))
+                            .reduce((a,b)=>a+b,0) / resolved.length;
+        m3 = Math.max(0, Math.round(100 - avg * 5));
+      }
+      // M4: sem atraso — 100 se zerou, -20 por atrasado
+      const m4 = mine.length ? Math.max(0, 100 - late.length * 20) : 100;
+
+      const score = Math.round(
+        (m1 * criteria.pesoResolvidos + m2 * criteria.pesoSLA + m3 * criteria.pesoTempo + m4 * criteria.pesoSemAtraso) / total
+      );
+      return { ...u, score, m1, m2, m3, m4, resolved: resolved.length, late: late.length, mine: mine.length };
+    }).sort((a,b) => b.score - a.score);
+  }, [tickets, users, period, criteria]);
+
+  const medals = ['🥇','🥈','🥉'];
+  const medalColors = ['from-yellow-400 to-yellow-600','from-gray-300 to-gray-500','from-orange-400 to-orange-600'];
+  const podiumH = ['h-40','h-28','h-20'];
+  const podiumOrder = ranking.length >= 3 ? [ranking[1], ranking[0], ranking[2]] : ranking;
+
+  return (
+    <div className="p-6 space-y-5 fade-in">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-xl font-bold text-gray-800">Dashboard de Premiação 🏆</h2>
+        <div className="flex gap-2">
+          <select value={period} onChange={e=>setPeriod(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+            <option value="week">Semana atual</option>
+            <option value="month">Mês atual</option>
+            <option value="all">Geral</option>
+          </select>
+          <button onClick={()=>setEditCrit(!editCrit)} className="text-xs px-3 py-1.5 border border-purple-300 text-purple-600 rounded-lg hover:bg-purple-50">⚙ Critérios</button>
+          <button onClick={()=>setEditPrizes(!editPrizes)} className="text-xs px-3 py-1.5 border border-yellow-400 text-yellow-600 rounded-lg hover:bg-yellow-50">🎁 Prêmios</button>
+        </div>
+      </div>
+
+      {editCrit && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3 fade-in">
+          <h4 className="text-sm font-semibold text-purple-800">Pesos dos Critérios (total = 100%)</h4>
+          <p className="text-xs text-purple-600">Total atual: {criteria.pesoResolvidos+criteria.pesoSLA+criteria.pesoTempo+criteria.pesoSemAtraso}%</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[['Chamados Resolvidos','pesoResolvidos'],['Cumprimento SLA','pesoSLA'],['Velocidade (tempo)','pesoTempo'],['Zero Atrasos','pesoSemAtraso']].map(([l,k])=>(
+              <div key={k}>
+                <label className="text-xs text-gray-600 mb-1 block">{l}</label>
+                <div className="flex items-center gap-2">
+                  <input type="range" min="0" max="100" value={criteria[k]}
+                    onChange={e=>setCriteria(c=>({...c,[k]:+e.target.value}))}
+                    className="flex-1 accent-purple-600" />
+                  <span className="text-sm font-bold text-purple-700 w-10 text-right">{criteria[k]}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {editPrizes && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-3 fade-in">
+          <h4 className="text-sm font-semibold text-yellow-800">Descrição dos Prêmios</h4>
+          {[['p1','🥇 1º Lugar'],['p2','🥈 2º Lugar'],['p3','🥉 3º Lugar']].map(([k,l])=>(
+            <div key={k} className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-600 w-24">{l}</span>
+              <input value={prizes[k]} onChange={e=>setPrizes(p=>({...p,[k]:e.target.value}))}
+                className="flex-1 border border-yellow-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Prêmios ativos */}
+      <div className="grid grid-cols-3 gap-3">
+        {[['p1','🥇','bg-yellow-50 border-yellow-300 text-yellow-800'],
+          ['p2','🥈','bg-gray-50 border-gray-300 text-gray-700'],
+          ['p3','🥉','bg-orange-50 border-orange-300 text-orange-800']].map(([k,m,c])=>(
+          <div key={k} className={`border rounded-xl p-3 text-center ${c}`}>
+            <p className="text-xl mb-1">{m}</p>
+            <p className="text-xs font-semibold">{prizes[k]}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Pódio */}
+      {ranking.length >= 2 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-sm font-semibold text-gray-600 text-center mb-6 uppercase tracking-wide">Pódio do Período</h3>
+          <div className="flex items-end justify-center gap-4">
+            {(ranking.length >= 3 ? [ranking[1], ranking[0], ranking[2]] : ranking.map((r,i)=>r)).map((u, idx) => {
+              const realPos = ranking.length >= 3 ? [2,1,3][idx] - 1 : idx;
+              const heights = ['h-28','h-40','h-20'];
+              const hIdx = ranking.length >= 3 ? idx : idx;
+              const bgGrad = ['from-gray-300 to-gray-400','from-yellow-400 to-yellow-500','from-orange-300 to-orange-500'][realPos] || 'from-gray-200 to-gray-300';
+              return (
+                <div key={u.id} className="flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg shadow">
+                    {u.avatar}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">{u.nome}</p>
+                  <p className="text-xs text-gray-400">{u.score} pts</p>
+                  <div className={`w-24 bg-gradient-to-t ${bgGrad} rounded-t-xl flex items-start justify-center pt-2 ${heights[hIdx] || 'h-24'}`}>
+                    <span className="text-2xl">{medals[realPos]}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Ranking completo */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-700">Ranking Completo</h3>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase">#</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase">Atendente</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase">Resolvidos</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase">SLA</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase">Velocidade</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase">Atrasos</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase">Pontuação</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {ranking.map((u, i) => {
+              const isTop3 = i < 3;
+              const rowBg = i === 0 ? 'bg-yellow-50' : i === 1 ? 'bg-gray-50' : i === 2 ? 'bg-orange-50' : '';
+              return (
+                <tr key={u.id} className={`${rowBg} hover:bg-purple-50 transition-colors`}>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-lg">{medals[i] || `${i+1}º`}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">{u.avatar}</div>
+                      <span className="font-medium text-gray-800">{u.nome}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="font-bold text-gray-700">{u.resolved}</span>
+                      <div className="w-16 bg-gray-200 rounded-full h-1 mt-1"><div className="h-1 rounded-full bg-green-500" style={{width:`${u.m1}%`}}/></div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`font-semibold ${u.m2 >= 80?'text-green-600':u.m2>=60?'text-yellow-600':'text-red-600'}`}>{u.m2}%</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`font-semibold ${u.m3 >= 70?'text-green-600':u.m3>=40?'text-yellow-600':'text-red-600'}`}>{u.m3}/100</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`font-semibold ${u.late===0?'text-green-600':'text-red-600'}`}>
+                      {u.late === 0 ? '✅ Zerado' : `⚠ ${u.late}`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="inline-flex flex-col items-center">
+                      <span className={`text-xl font-bold ${i===0?'text-yellow-600':i===1?'text-gray-500':i===2?'text-orange-600':'text-purple-600'}`}>
+                        {u.score}
+                      </span>
+                      <span className="text-xs text-gray-400">pts</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {!ranking.length && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhum dado no período.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+        <strong>Como a pontuação é calculada:</strong> cada critério tem um peso configurável.
+        Resolvidos (cada chamado = 10pts, cap 100) · SLA (% no prazo) · Velocidade (100 - média de dias × 5) · Zero Atrasos (100 - atrasados × 20).
+        A pontuação final é a média ponderada pelos pesos definidos.
+      </div>
+    </div>
+  );
+}
+
+// ── IMPORTAR LEADS ─────────────────────────────────────────────────────────
+
+function ImportarPage({ tickets, onSave }) {
+  const [step, setStep] = useState('upload'); // upload | mapping | preview | done
+  const [rawHeaders, setRawHeaders] = useState([]);
+  const [rawRows, setRawRows] = useState([]);
+  const [mapping, setMapping] = useState({});
+  const [preview, setPreview] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importCount, setImportCount] = useState(0);
+  const fileRef = useRef(null);
+
+  const FIELDS = [
+    { key:'nomeCliente', label:'Nome do Cliente', required:true },
+    { key:'cpf',         label:'CPF' },
+    { key:'email',       label:'E-mail' },
+    { key:'telefone',    label:'WhatsApp / Telefone' },
+    { key:'unidade',     label:'Unidade' },
+    { key:'canal',       label:'Canal' },
+    { key:'motivo',      label:'Motivo' },
+    { key:'servico',     label:'Serviço' },
+    { key:'valorPago',   label:'Valor Pago' },
+    { key:'dataReclamacao', label:'Data da Reclamação' },
+    { key:'observacoes', label:'Observações' },
+  ];
+
+  const autoDetect = (hdrs) => {
+    const map = {};
+    const patterns = {
+      nomeCliente: /nome|client/i, cpf: /cpf/i,
+      email: /e.?mail/i, telefone: /tel|whats|fone|cel/i,
+      unidade: /unidade|loja|store/i, canal: /canal/i,
+      motivo: /motivo|reason/i, servico: /servi[cç]/i,
+      valorPago: /valor|pago|price/i, dataReclamacao: /data|date/i,
+      observacoes: /obs|descri|nota/i,
+    };
+    hdrs.forEach((h, i) => {
+      for (const [field, pat] of Object.entries(patterns)) {
+        if (!map[field] && pat.test(String(h || ''))) map[field] = String(i);
+      }
+    });
+    setMapping(map);
+  };
+
+  const parseFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+        if (!json.length) return alert('Planilha vazia ou sem dados.');
+        const hdrs = json[0].map(h => String(h||'').trim());
+        const rows = json.slice(1).filter(r => r.some(v => String(v||'').trim()));
+        setRawHeaders(hdrs);
+        setRawRows(rows);
+        autoDetect(hdrs);
+        setStep('mapping');
+      } catch(err) {
+        alert('Erro ao ler arquivo. Certifique-se de usar .xlsx, .xls ou .csv');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files[0] || e.target.files?.[0];
+    if (file) parseFile(file);
+  };
+
+  const buildPreview = () => {
+    const processed = rawRows.slice(0, 500).map((row, idx) => {
+      const get = (field) => {
+        const col = mapping[field];
+        if (col === undefined || col === '') return '';
+        const v = row[parseInt(col)];
+        return v !== null && v !== undefined ? String(v).trim() : '';
+      };
+
+      const cpf = get('cpf').replace(/\D/g,'');
+      const nome = get('nomeCliente').toLowerCase().trim();
+
+      let dup = null, dupId = null, dupField = null;
+
+      if (cpf.length >= 8) {
+        const ex = tickets.find(t => t.cpf && t.cpf.replace(/\D/g,'') === cpf);
+        if (ex) { dup = 'exact'; dupId = ex.id; dupField = 'CPF'; }
+      }
+
+      if (!dup && nome.length > 3) {
+        const ex = tickets.find(t => t.nomeCliente && t.nomeCliente.toLowerCase().trim() === nome);
+        if (ex) { dup = 'name'; dupId = ex.id; dupField = 'Nome'; }
+      }
+
+      return {
+        idx, row,
+        data: { nomeCliente: get('nomeCliente'), cpf: get('cpf'), email: get('email'),
+                telefone: get('telefone'), unidade: get('unidade'), canal: get('canal'),
+                motivo: get('motivo'), servico: get('servico'), valorPago: get('valorPago'),
+                dataReclamacao: get('dataReclamacao'), observacoes: get('observacoes') },
+        dup, dupId, dupField,
+        include: !dup,
+      };
+    });
+    setPreview(processed);
+    setStep('preview');
+  };
+
+  const toggleRow = (idx) => {
+    setPreview(p => p.map(r => r.idx === idx ? {...r, include: !r.include} : r));
+  };
+
+  const doImport = () => {
+    setImporting(true);
+    const toImport = preview.filter(p => p.include);
+    toImport.forEach(p => {
+      const d = p.data;
+      const ticket = {
+        id: genId(),
+        dataReclamacao: d.dataReclamacao || new Date().toISOString().split('T')[0],
+        dataAtendimento: new Date().toISOString().split('T')[0],
+        ultimaAtualizacao: new Date().toISOString().split('T')[0],
+        canal: d.canal || 'Importado',
+        nomeCliente: d.nomeCliente, cpf: d.cpf, email: d.email, telefone: d.telefone,
+        fase: 'Novo', responsavel: '',
+        motivo: d.motivo || 'Outros', prioridade: 'media',
+        unidade: d.unidade, tipoUnidade: 'FR',
+        valorPago: d.valorPago, servico: d.servico,
+        observacoes: d.observacoes, pagamentoRealizado: false, status: 'Em andamento',
+        historico: [{ data: new Date().toISOString().split('T')[0], usuario: 'Importação', acao: 'Lead importado via planilha.' }],
+      };
+      onSave(ticket);
+    });
+    setImportCount(toImport.length);
+    setImporting(false);
+    setStep('done');
+  };
+
+  const reset = () => { setStep('upload'); setRawHeaders([]); setRawRows([]); setMapping({}); setPreview([]); };
+
+  const dups = preview.filter(p => p.dup);
+  const selected = preview.filter(p => p.include);
+
+  return (
+    <div className="p-6 space-y-4 fade-in">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">Importar Leads 📥</h2>
+        {step !== 'upload' && step !== 'done' && (
+          <button onClick={reset} className="text-xs text-gray-500 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50">← Novo arquivo</button>
+        )}
+      </div>
+
+      {/* Steps indicator */}
+      <div className="flex items-center gap-2 text-xs">
+        {[['upload','1. Upload'],['mapping','2. Mapeamento'],['preview','3. Revisão'],['done','4. Concluído']].map(([s,l],i,arr)=>(
+          <React.Fragment key={s}>
+            <span className={`px-3 py-1 rounded-full font-medium ${step===s?'bg-purple-600 text-white':'text-gray-400'}`}>{l}</span>
+            {i < arr.length-1 && <span className="text-gray-300">→</span>}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* STEP 1: Upload */}
+      {step === 'upload' && (
+        <div
+          onDrop={onDrop} onDragOver={e=>e.preventDefault()}
+          onClick={()=>fileRef.current?.click()}
+          className="border-2 border-dashed border-purple-300 rounded-2xl p-12 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition-colors">
+          <p className="text-5xl mb-4">📊</p>
+          <p className="text-lg font-semibold text-gray-700">Arraste ou clique para selecionar</p>
+          <p className="text-sm text-gray-400 mt-1">Suporta .xlsx, .xls e .csv</p>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onDrop} />
+        </div>
+      )}
+
+      {/* STEP 2: Mapping */}
+      {step === 'mapping' && (
+        <div className="space-y-4 fade-in">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+            Detectamos <strong>{rawHeaders.length}</strong> colunas e <strong>{rawRows.length}</strong> linhas.
+            Confirme o mapeamento abaixo — campos detectados automaticamente foram marcados.
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 grid grid-cols-2 gap-3">
+            {FIELDS.map(f => (
+              <div key={f.key}>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">
+                  {f.label} {f.required && <span className="text-red-400">*</span>}
+                </label>
+                <select value={mapping[f.key] ?? ''} onChange={e=>setMapping(m=>({...m,[f.key]:e.target.value}))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400">
+                  <option value="">— Não importar —</option>
+                  {rawHeaders.map((h,i)=><option key={i} value={String(i)}>{h || `Coluna ${i+1}`}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-3 overflow-x-auto">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Prévia (3 primeiras linhas):</p>
+            <table className="text-xs">
+              <thead><tr>{rawHeaders.map((h,i)=><th key={i} className="px-2 py-1 bg-gray-50 border text-left font-medium text-gray-600 whitespace-nowrap">{h||`Col ${i+1}`}</th>)}</tr></thead>
+              <tbody>{rawRows.slice(0,3).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j} className="px-2 py-1 border text-gray-700 whitespace-nowrap max-w-xs truncate">{String(v)}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+          <div className="flex justify-end">
+            <button onClick={buildPreview} disabled={!mapping.nomeCliente && mapping.nomeCliente !== '0'}
+              className="bg-purple-600 text-white text-sm px-6 py-2 rounded-lg hover:bg-purple-700 font-medium disabled:opacity-40">
+              Verificar Duplicados →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: Preview */}
+      {step === 'preview' && (
+        <div className="space-y-4 fade-in">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold text-blue-700">{preview.length}</p>
+              <p className="text-xs text-gray-500">Leads encontrados</p>
+            </div>
+            <div className={`border rounded-xl p-3 text-center ${dups.length ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+              <p className={`text-2xl font-bold ${dups.length ? 'text-red-600' : 'text-green-600'}`}>{dups.length}</p>
+              <p className="text-xs text-gray-500">Duplicados detectados</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold text-green-700">{selected.length}</p>
+              <p className="text-xs text-gray-500">Selecionados para importar</p>
+            </div>
+          </div>
+
+          {dups.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-800">
+              <strong>⚠ {dups.length} lead(s) duplicado(s) detectado(s)</strong> (desmarcados automaticamente).
+              Leads marcados em vermelho já existem no sistema. Você pode reativá-los manualmente se necessário.
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-3 py-2 text-left">
+                      <input type="checkbox" checked={selected.length === preview.length}
+                        onChange={e=>setPreview(p=>p.map(r=>({...r,include:e.target.checked})))} />
+                    </th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-500">Nome</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-500">CPF</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-500">E-mail / WhatsApp</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-500">Unidade</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-500">Motivo</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-500">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {preview.map(p => (
+                    <tr key={p.idx} className={p.dup ? 'bg-red-50' : p.include ? '' : 'opacity-50'}>
+                      <td className="px-3 py-2">
+                        <input type="checkbox" checked={p.include} onChange={()=>toggleRow(p.idx)} />
+                      </td>
+                      <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{p.data.nomeCliente || '—'}</td>
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{p.data.cpf || '—'}</td>
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">
+                        <div>{p.data.email}</div>
+                        <div className="text-gray-400">{p.data.telefone}</div>
+                      </td>
+                      <td className="px-3 py-2 text-gray-500 max-w-[140px] truncate">{p.data.unidade || '—'}</td>
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{p.data.motivo || '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {p.dup
+                          ? <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                              ⚠ Duplicado ({p.dupField})
+                            </span>
+                          : <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Novo</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <button onClick={()=>setStep('mapping')} className="text-sm text-gray-500 border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50">← Voltar</button>
+            <button onClick={doImport} disabled={!selected.length || importing}
+              className="bg-purple-600 text-white text-sm px-6 py-2 rounded-lg hover:bg-purple-700 font-medium disabled:opacity-40">
+              {importing ? 'Importando...' : `Importar ${selected.length} lead(s) →`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 4: Done */}
+      {step === 'done' && (
+        <div className="fade-in text-center py-12 space-y-4">
+          <div className="text-6xl">🎉</div>
+          <h3 className="text-xl font-bold text-gray-800">{importCount} lead(s) importado(s) com sucesso!</h3>
+          <p className="text-gray-500 text-sm">Os chamados foram criados na fase "Novo" e estão disponíveis na lista de chamados.</p>
+          <div className="flex justify-center gap-3">
+            <button onClick={reset} className="bg-purple-600 text-white text-sm px-6 py-2 rounded-lg hover:bg-purple-700 font-medium">
+              Importar novo arquivo
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── APP ROOT ───────────────────────────────────────────────────────────────
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('dashboard');
+  const [tickets, setTickets] = useState(() => load('lco_tickets', TICKETS_DEFAULT));
+  const [users, setUsers] = useState(() => load('lco_users', USERS_DEFAULT));
+  const [motivos, setMotivos] = useState(() => load('lco_motivos', MOTIVOS_DEFAULT));
+
+  useEffect(() => { save('lco_tickets', tickets); }, [tickets]);
+  useEffect(() => { save('lco_users', users); }, [users]);
+  useEffect(() => { save('lco_motivos', motivos); }, [motivos]);
+
+  const saveTicket = t => setTickets(prev => {
+    const i = prev.findIndex(x => x.id === t.id);
+    return i >= 0 ? prev.map(x => x.id===t.id?t:x) : [...prev, t];
+  });
+  const delTicket = id => setTickets(prev => prev.filter(t => t.id !== id));
+  const updateUsers = us => setUsers(us);
+
+  if (!user) return <LoginPage users={users} onLogin={setUser} />;
+
+  const pages = {
+    dashboard:  <DashboardPage  tickets={tickets} users={users} />,
+    tickets:    <TicketsPage    tickets={tickets} users={users} onSave={saveTicket} onDelete={delTicket} currentUser={user} motivos={motivos} />,
+    kanban:     <KanbanPage     tickets={tickets} users={users} onSave={saveTicket} />,
+    whatsapp:   <WhatsAppPage   users={users} onSave={saveTicket} currentUser={user} />,
+    reports:    <ReportsPage    tickets={tickets} users={users} />,
+    atendentes: <AtendentesPage tickets={tickets} users={users} />,
+    premiacao:  <PremiacaoPage  tickets={tickets} users={users} />,
+    importar:   <ImportarPage   tickets={tickets} onSave={saveTicket} />,
+    settings: user.role==='admin'
+      ? <SettingsPage users={users} onUpdateUsers={updateUsers} motivos={motivos} onUpdateMotivos={setMotivos} />
+      : <div className="p-6 text-gray-400 text-center mt-20">Acesso restrito a administradores.</div>,
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      <Sidebar view={view} setView={setView} user={user} onLogout={() => setUser(null)} />
+      <main className="flex-1 overflow-auto">
+        {pages[view] || pages.dashboard}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
