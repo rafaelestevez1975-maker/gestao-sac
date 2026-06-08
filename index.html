@@ -132,7 +132,7 @@ const TICKETS_DEFAULT = [
     motivo:'Máquina Quebrada', protocolo:'PROT-001', areaReclamada:'Depilação', prioridade:'media',
     unidade:'Rio de Janeiro - Boulevard', tipoUnidade:'FR', valorPago:'R$ 2.400,00', multaAplicada:'Sim',
     reembolso:'R$ 480,00', pagamentoRealizado:false, valorRetido:'', dataReembolso:'',
-    status:'Em andamento', servico:'Depilação corpo inteiro',
+    status:['Em andamento'], servico:'Depilação corpo inteiro',
     observacoes:'Sessão cancelada por máquina quebrada há 3 semanas.',
     historico:[
       { data:dAgo(14), usuario:'Liliane', acao:'Primeiro contato com cliente realizado.' },
@@ -144,7 +144,7 @@ const TICKETS_DEFAULT = [
     fase:'Aguardando cliente', responsavel:'u2', sults:'9153',
     motivo:'Agendamento', prioridade:'media', unidade:'São Paulo - Frei Caneca Shopping', tipoUnidade:'PR',
     valorPago:'R$ 1.800,00', multaAplicada:'Não', pagamentoRealizado:false,
-    status:'Em andamento', servico:'Full Face',
+    status:['Em andamento'], servico:'Full Face',
     observacoes:'Dificuldade de agendar sessões.',
     historico:[{ data:dAgo(4), usuario:'Liliane', acao:'Ticket aberto via Sults.' }]},
   { id:'T003', dataReclamacao:dAgo(8), dataAtendimento:dAgo(7), ultimaAtualizacao:dAgo(7),
@@ -152,7 +152,7 @@ const TICKETS_DEFAULT = [
     fase:'Em pagamento', responsavel:'u2', sults:'6446',
     motivo:'Reembolso', prioridade:'alta', unidade:'São Paulo - Metrô Tucuruvi Shopping', tipoUnidade:'PR',
     valorPago:'R$ 3.200,00', multaAplicada:'Não', reembolso:'R$ 3.200,00', pagamentoRealizado:false,
-    status:'Aguardando Reembolso', servico:'Melasma',
+    status:['Aguardando Reembolso'], servico:'Melasma',
     observacoes:'Reembolso aprovado. Aguardando financeiro.',
     historico:[
       { data:dAgo(7), usuario:'Liliane', acao:'Solicitação de reembolso recebida.' },
@@ -163,7 +163,7 @@ const TICKETS_DEFAULT = [
     fase:'Novo', responsavel:'u3', idReclameAqui:'RA-2026-44521',
     motivo:'Encerramento da unidade', prioridade:'critica', unidade:'Brasília - Conjunto Nacional Shopping', tipoUnidade:'FR',
     valorPago:'R$ 4.500,00', pagamentoRealizado:false,
-    status:'Em andamento', servico:'Depilação + Rejuvenescimento',
+    status:['Em andamento'], servico:'Depilação + Rejuvenescimento',
     observacoes:'Unidade fechou sem aviso. Cliente com sessões a utilizar.',
     historico:[{ data:dAgo(1), usuario:'Renata', acao:'Ticket aberto via Reclame Aqui. Alta prioridade.' }]},
   { id:'T005', dataReclamacao:dAgo(20), dataAtendimento:dAgo(19), ultimaAtualizacao:dAgo(2),
@@ -171,7 +171,7 @@ const TICKETS_DEFAULT = [
     fase:'Concluído', responsavel:'u2',
     motivo:'Agendamento', prioridade:'media', unidade:'Rio de Janeiro - Nova América', tipoUnidade:'FR',
     valorPago:'R$ 900,00', pagamentoRealizado:false,
-    status:'Resolvido', servico:'Depilação',
+    status:['Resolvido'], servico:'Depilação',
     observacoes:'Problema de agendamento resolvido.',
     historico:[
       { data:dAgo(19), usuario:'Liliane', acao:'Ticket aberto.' },
@@ -183,7 +183,7 @@ const TICKETS_DEFAULT = [
     fase:'Em pagamento', responsavel:'u3', numeroProcon:'PROCON-2026-00127',
     motivo:'Jurídico / Procon', prioridade:'critica', unidade:'Goiânia - Alto da Glória', tipoUnidade:'FR',
     valorPago:'R$ 5.000,00', multaAplicada:'Sim', reembolso:'R$ 5.000,00', pagamentoRealizado:false,
-    status:'Aguardando Reembolso', servico:'Pacote completo',
+    status:['Aguardando Reembolso'], servico:'Pacote completo',
     observacoes:'Processo Procon aberto.',
     historico:[
       { data:dAgo(29), usuario:'Gizeli', acao:'Notificação Procon recebida.' },
@@ -195,7 +195,7 @@ const TICKETS_DEFAULT = [
     fase:'Contato com cliente', responsavel:'u3',
     motivo:'Insatisfação com resultados', prioridade:'alta', unidade:'Porto Alegre - Pátio 24', tipoUnidade:'FR',
     valorPago:'R$ 2.800,00', pagamentoRealizado:false,
-    status:'Em andamento', servico:'Depilação definitiva',
+    status:['Em andamento'], servico:'Depilação definitiva',
     observacoes:'Cliente alega que após 8 sessões não houve resultado satisfatório.',
     historico:[
       { data:dAgo(11), usuario:'Renata', acao:'Ticket aberto. Solicitando laudo técnico.' },
@@ -205,7 +205,7 @@ const TICKETS_DEFAULT = [
     fase:'Concluído', responsavel:'u2', sults:'9161',
     motivo:'Ausência de resultados', prioridade:'media', unidade:'Rio de Janeiro - Norte Shopping', tipoUnidade:'FR',
     valorPago:'R$ 2.100,00', pagamentoRealizado:false,
-    status:'Resolvido', servico:'Full Face',
+    status:['Resolvido'], servico:'Full Face',
     observacoes:'Sessões de reposição oferecidas e aceitas.',
     historico:[
       { data:dAgo(44), usuario:'Liliane', acao:'Ticket aberto.' },
@@ -217,7 +217,7 @@ const TICKETS_DEFAULT = [
     fase:'Novo', responsavel:'u2',
     motivo:'Venda Indevida', prioridade:'alta', unidade:'São Paulo - SP Market Shopping', tipoUnidade:'FR',
     valorPago:'R$ 3.600,00', pagamentoRealizado:false,
-    status:'Em andamento', servico:'Pacote premium',
+    status:['Em andamento'], servico:'Pacote premium',
     observacoes:'Cliente diz que foi induzida a comprar pacote sem esclarecimento.',
     historico:[{ data:dAgo(2), usuario:'Tatiana', acao:'Ticket recebido via Instagram DM.' }]},
   { id:'T010', dataReclamacao:dAgo(7), dataAtendimento:dAgo(6), ultimaAtualizacao:dAgo(6),
@@ -225,7 +225,7 @@ const TICKETS_DEFAULT = [
     fase:'Aguardando retorno interno', responsavel:'u3',
     motivo:'BEMP (plataforma)', prioridade:'media', unidade:'Jaboatão dos Guararapes - Guararapes Shopping', tipoUnidade:'FR',
     valorPago:'R$ 1.500,00', pagamentoRealizado:false,
-    status:'Em andamento', servico:'Depilação',
+    status:['Em andamento'], servico:'Depilação',
     observacoes:'Erro na plataforma BEMP impedindo agendamento.',
     historico:[
       { data:dAgo(6), usuario:'Taynara', acao:'Ticket aberto. Encaminhado ao setor técnico.' },
@@ -252,8 +252,18 @@ function daysSince(d) {
   return Math.floor((new Date() - new Date(d + 'T00:00:00')) / 86400000);
 }
 
+// normaliza status para sempre ser array (compatibilidade com dados antigos)
+function toStatusArr(s) {
+  if (Array.isArray(s)) return s;
+  return s ? [s] : ['Em andamento'];
+}
+
+function hasStatus(t, ...vals) {
+  return toStatusArr(t.status).some(s => vals.includes(s));
+}
+
 function isOverdue(t) {
-  if (['Concluído','Resolvido','Encerrado / Sem Retorno'].includes(t.status)) return false;
+  if (hasStatus(t, 'Concluído','Resolvido','Encerrado / Sem Retorno')) return false;
   const sla = t.fase === 'Em pagamento' ? SLA_PAYMENT : SLA_NORMAL;
   return daysSince(t.ultimaAtualizacao) > sla;
 }
@@ -276,7 +286,7 @@ function calcScore(tickets, uid) {
   if (!mine.length) return 100;
   let s = 100;
   mine.forEach(t => {
-    if (['Concluído','Resolvido'].includes(t.status)) s += 2;
+    if (hasStatus(t, 'Concluído','Resolvido')) s += 2;
     else if (isOverdue(t)) s -= (t.fase === 'Em pagamento' ? 10 : 5);
   });
   return Math.max(0, Math.min(100, s));
@@ -464,10 +474,10 @@ function DashboardPage({ tickets, users }) {
 
   const stats = useMemo(() => {
     const total = tickets.length;
-    const abertos = tickets.filter(t => !['Concluído','Resolvido','Encerrado / Sem Retorno'].includes(t.status)).length;
-    const concluidos = tickets.filter(t => ['Concluído','Resolvido'].includes(t.status)).length;
+    const abertos = tickets.filter(t => !hasStatus(t,'Concluído','Resolvido','Encerrado / Sem Retorno')).length;
+    const concluidos = tickets.filter(t => hasStatus(t,'Concluído','Resolvido')).length;
     const atrasados = tickets.filter(t => isOverdue(t)).length;
-    const criticos = tickets.filter(t => t.prioridade === 'critica' && !['Concluído','Resolvido'].includes(t.status)).length;
+    const criticos = tickets.filter(t => t.prioridade === 'critica' && !hasStatus(t,'Concluído','Resolvido')).length;
     return { total, abertos, concluidos, atrasados, criticos };
   }, [tickets]);
 
@@ -527,7 +537,7 @@ function DashboardPage({ tickets, users }) {
           labels: atend.map(u => u.nome),
           datasets:[
             { label:'Total',      data:atend.map(u => tickets.filter(t=>t.responsavel===u.id).length), backgroundColor:'#c084fc', borderRadius:4 },
-            { label:'Concluídos', data:atend.map(u => tickets.filter(t=>t.responsavel===u.id&&['Concluído','Resolvido'].includes(t.status)).length), backgroundColor:'#7c3aed', borderRadius:4 },
+            { label:'Concluídos', data:atend.map(u => tickets.filter(t=>t.responsavel===u.id&&hasStatus(t,'Concluído','Resolvido')).length), backgroundColor:'#7c3aed', borderRadius:4 },
           ]
         },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{font:{size:10},boxWidth:12}}}, scales:{y:{beginAtZero:true}} }
@@ -603,7 +613,7 @@ function ReportsPage({ tickets, users }) {
   useEffect(() => {
     // Status pie
     const sc = {};
-    filtered.forEach(t => sc[t.status] = (sc[t.status]||0)+1);
+    filtered.forEach(t => toStatusArr(t.status).forEach(s => sc[s] = (sc[s]||0)+1));
     const statuses = Object.entries(sc);
     const COLORS = ['#9333ea','#22c55e','#f59e0b','#ef4444','#3b82f6','#6b7280'];
     if (r1.current) {
@@ -642,7 +652,7 @@ function ReportsPage({ tickets, users }) {
   }, [filtered]);
 
   const avgResolution = useMemo(() => {
-    const resolved = filtered.filter(t => ['Concluído','Resolvido'].includes(t.status));
+    const resolved = filtered.filter(t => hasStatus(t,'Concluído','Resolvido'));
     if (!resolved.length) return 0;
     const days = resolved.map(t => {
       const a = new Date(t.dataReclamacao+'T00:00:00');
@@ -652,8 +662,8 @@ function ReportsPage({ tickets, users }) {
     return (days.reduce((a,b)=>a+b,0)/days.length).toFixed(1);
   }, [filtered]);
 
-  const slaOk = filtered.filter(t => !isOverdue(t) && ['Concluído','Resolvido'].includes(t.status)).length;
-  const slaTotal = filtered.filter(t => ['Concluído','Resolvido'].includes(t.status)).length;
+  const slaOk = filtered.filter(t => !isOverdue(t) && hasStatus(t,'Concluído','Resolvido')).length;
+  const slaTotal = filtered.filter(t => hasStatus(t,'Concluído','Resolvido')).length;
 
   return (
     <div className="p-6 space-y-5 fade-in">
@@ -706,9 +716,9 @@ function TicketForm({ ticket, users, onSave, onCancel, currentUser, motivos }) {
     motivo: motivos[0], protocolo:'', areaReclamada:'', prioridade:'media',
     unidade: UNIDADES[0], tipoUnidade:'FR', valorPago:'', multaAplicada:'Não',
     reembolso:'', pagamentoRealizado:false, valorRetido:'', dataReembolso:'',
-    status:'Em andamento', servico:'', observacoes:'', historico:[],
+    status:['Em andamento'], servico:'', observacoes:'', historico:[],
   };
-  const [f, setF] = useState(ticket || blank);
+  const [f, setF] = useState(ticket ? {...ticket, status: toStatusArr(ticket.status)} : blank);
   const s = (k, v) => setF(x => ({...x, [k]: v}));
   const atend = users.filter(u => u.role === 'atendente' && u.ativo);
 
@@ -771,7 +781,25 @@ function TicketForm({ ticket, users, onSave, onCancel, currentUser, motivos }) {
         <legend className="text-xs font-semibold text-gray-600 px-1">📈 Status</legend>
         <div className="grid grid-cols-2 gap-3">
           <Sel label="Fase (Kanban)" options={FASES} value={f.fase} onChange={e=>s('fase',e.target.value)} />
-          <Sel label="Status" options={STATUS_LIST} value={f.status} onChange={e=>s('status',e.target.value)} />
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Status <span className="text-gray-400">(marque todos que se aplicam)</span></label>
+            <div className="border border-gray-200 rounded-lg p-2 space-y-1 bg-white">
+              {STATUS_LIST.map(opt => {
+                const arr = toStatusArr(f.status);
+                const checked = arr.includes(opt);
+                const toggle = () => {
+                  const next = checked ? arr.filter(x=>x!==opt) : [...arr, opt];
+                  s('status', next.length ? next : ['Em andamento']);
+                };
+                return (
+                  <label key={opt} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-purple-50 rounded px-1 py-0.5">
+                    <input type="checkbox" checked={checked} onChange={toggle} className="accent-purple-600" />
+                    {opt}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         </div>
         <Txt label="Observações" value={f.observacoes} onChange={e=>s('observacoes',e.target.value)} rows={3} />
       </fieldset>
@@ -789,7 +817,7 @@ function TicketForm({ ticket, users, onSave, onCancel, currentUser, motivos }) {
 function TicketDetail({ ticket, users, onSave, currentUser }) {
   const [nota, setNota] = useState('');
   const [fase, setFase] = useState(ticket.fase);
-  const [status, setStatus] = useState(ticket.status);
+  const [status, setStatus] = useState(toStatusArr(ticket.status));
   const atend = users.find(u => u.id === ticket.responsavel);
   const overdue = isOverdue(ticket);
 
@@ -849,11 +877,22 @@ function TicketDetail({ ticket, users, onSave, currentUser }) {
           </select>
         </div>
         <div className="flex-1">
-          <label className="text-xs text-gray-500 mb-1 block">Status</label>
-          <select value={status} onChange={e=>setStatus(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400">
-            {STATUS_LIST.map(x=><option key={x}>{x}</option>)}
-          </select>
+          <label className="text-xs text-gray-500 mb-1 block">Status <span className="text-gray-400">(múltiplos)</span></label>
+          <div className="border border-gray-300 rounded-lg p-2 space-y-1 bg-white">
+            {STATUS_LIST.map(opt => {
+              const checked = status.includes(opt);
+              const toggle = () => {
+                const next = checked ? status.filter(x=>x!==opt) : [...status, opt];
+                setStatus(next.length ? next : ['Em andamento']);
+              };
+              return (
+                <label key={opt} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-purple-50 rounded px-1 py-0.5">
+                  <input type="checkbox" checked={checked} onChange={toggle} className="accent-purple-600" />
+                  {opt}
+                </label>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -890,7 +929,7 @@ function TicketsPage({ tickets, users, onSave, onDelete, currentUser, motivos })
   const [newT, setNewT] = useState(false);
   const [f, setF] = useState({ q:'', motivo:'', responsavel:'', status:'', tipo:'' });
   const [selected, setSelected] = useState(new Set());           // ids selecionados
-  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkStatus, setBulkStatus] = useState([]);
   const [bulkFase, setBulkFase] = useState('');
   const [bulkResp, setBulkResp] = useState('');
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -902,7 +941,7 @@ function TicketsPage({ tickets, users, onSave, onDelete, currentUser, motivos })
     if (f.q && ![t.nomeCliente,t.cpf,t.email,t.id].join(' ').toLowerCase().includes(f.q.toLowerCase())) return false;
     if (f.motivo && t.motivo !== f.motivo) return false;
     if (f.responsavel && t.responsavel !== f.responsavel) return false;
-    if (f.status && t.status !== f.status) return false;
+    if (f.status && !toStatusArr(t.status).includes(f.status)) return false;
     if (f.tipo && t.tipoUnidade !== f.tipo) return false;
     return true;
   }), [tickets, f]);
@@ -915,22 +954,22 @@ function TicketsPage({ tickets, users, onSave, onDelete, currentUser, motivos })
 
   // ação em lote
   const applyBulk = () => {
-    if (!bulkStatus && !bulkFase && !bulkResp) return;
+    if (!bulkStatus.length && !bulkFase && !bulkResp) return;
     list.filter(t => selected.has(t.id)).forEach(t => {
       const upd = { ...t, ultimaAtualizacao: new Date().toISOString().split('T')[0] };
-      if (bulkStatus) upd.status = bulkStatus;
+      if (bulkStatus.length) upd.status = bulkStatus;
       if (bulkFase)   upd.fase   = bulkFase;
       if (bulkResp)   upd.responsavel = bulkResp;
       if (bulkStatus || bulkFase) {
         upd.historico = [...(t.historico||[]), {
           data: new Date().toISOString().split('T')[0],
           usuario: currentUser.nome,
-          acao: `Atualização em lote — ${[bulkStatus&&`Status: ${bulkStatus}`, bulkFase&&`Fase: ${bulkFase}`, bulkResp&&`Responsável atualizado`].filter(Boolean).join(' · ')}`,
+          acao: `Atualização em lote — ${[bulkStatus.length&&`Status: ${bulkStatus.join(', ')}`, bulkFase&&`Fase: ${bulkFase}`, bulkResp&&`Responsável atualizado`].filter(Boolean).join(' · ')}`,
         }];
       }
       onSave(upd);
     });
-    setSelected(new Set()); setBulkStatus(''); setBulkFase(''); setBulkResp(''); setBulkOpen(false);
+    setSelected(new Set()); setBulkStatus([]); setBulkFase(''); setBulkResp(''); setBulkOpen(false);
   };
 
   if (newT) return (
@@ -1005,11 +1044,21 @@ function TicketsPage({ tickets, users, onSave, onDelete, currentUser, motivos })
 
           {bulkOpen && (
             <div className="w-full flex flex-wrap gap-2 pt-2 border-t border-white/20">
-              <select value={bulkStatus} onChange={e=>setBulkStatus(e.target.value)}
-                className="flex-1 min-w-[160px] border-0 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-white/50">
-                <option value="">— Status —</option>
-                {STATUS_LIST.map(s=><option key={s}>{s}</option>)}
-              </select>
+              <div className="flex-1 min-w-[200px] bg-white/10 rounded-lg px-3 py-2">
+                <p className="text-xs text-purple-200 mb-1.5">Status (marque os desejados)</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {STATUS_LIST.map(s => {
+                    const checked = bulkStatus.includes(s);
+                    const toggle = () => setBulkStatus(prev => checked ? prev.filter(x=>x!==s) : [...prev, s]);
+                    return (
+                      <label key={s} className="flex items-center gap-1.5 text-xs text-white cursor-pointer">
+                        <input type="checkbox" checked={checked} onChange={toggle} className="accent-purple-300" />
+                        {s}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
               <select value={bulkFase} onChange={e=>setBulkFase(e.target.value)}
                 className="flex-1 min-w-[160px] border-0 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-white/50">
                 <option value="">— Fase (Kanban) —</option>
@@ -1072,7 +1121,7 @@ function TicketsPage({ tickets, users, onSave, onDelete, currentUser, motivos })
                     <td className="px-4 py-3 text-xs text-gray-600 max-w-[100px] truncate">{t.motivo}</td>
                     <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{at?.nome||'—'}</td>
                     <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{t.fase}</td>
-                    <td className="px-4 py-3 whitespace-nowrap"><Badge label={t.status} color={sc[t.status]||'bg-gray-100 text-gray-600'} /></td>
+                    <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{toStatusArr(t.status).map(st=><Badge key={st} label={st} color={sc[st]||'bg-gray-100 text-gray-600'} />)}</div></td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {od ? <span className="text-xs text-red-500 font-medium pulse">⚠ Atrasado</span>
                            : <Badge label={prioLabel(t.prioridade)} color={prioColor(t.prioridade)} />}
@@ -1240,7 +1289,7 @@ function WhatsAppPage({ users, onSave, currentUser }) {
         dataAtendimento:new Date().toISOString().split('T')[0],
         ultimaAtualizacao:new Date().toISOString().split('T')[0],
         canal:'WhatsApp', ...nf, fase:'Novo', responsavel:'', prioridade:'media',
-        tipoUnidade:'FR', pagamentoRealizado:false, status:'Em andamento',
+        tipoUnidade:'FR', pagamentoRealizado:false, status:['Em andamento'],
         historico:[{data:new Date().toISOString().split('T')[0],usuario:'Bot WhatsApp',acao:'Chamado criado via triagem WhatsApp.'}]
       };
       onSave(ticket);
@@ -1334,8 +1383,8 @@ function AtendentesPage({ tickets, users }) {
 
   const data = atend.map(u => {
     const mine = tickets.filter(t=>t.responsavel===u.id);
-    const done = mine.filter(t=>['Concluído','Resolvido'].includes(t.status));
-    const open = mine.filter(t=>!['Concluído','Resolvido','Encerrado / Sem Retorno'].includes(t.status));
+    const done = mine.filter(t=>hasStatus(t,'Concluído','Resolvido'));
+    const open = mine.filter(t=>!hasStatus(t,'Concluído','Resolvido','Encerrado / Sem Retorno'));
     const late = mine.filter(t=>isOverdue(t));
     const score = calcScore(tickets, u.id);
     const avgD = done.length ? (done.map(t=>{
@@ -1566,7 +1615,7 @@ function PremiacaoPage({ tickets, users }) {
 
     return atend.map(u => {
       const mine = pTix.filter(t => t.responsavel === u.id);
-      const resolved = mine.filter(t => ['Concluído','Resolvido'].includes(t.status));
+      const resolved = mine.filter(t => hasStatus(t,'Concluído','Resolvido'));
       const late = mine.filter(t => isOverdue(t));
 
       // M1: resolvidos (cada 1 vale 10 pontos, cap 100)
@@ -1886,7 +1935,7 @@ function ImportarPage({ tickets, onSave }) {
         motivo: d.motivo || 'Outros', prioridade: 'media',
         unidade: d.unidade, tipoUnidade: 'FR',
         valorPago: d.valorPago, servico: d.servico,
-        observacoes: d.observacoes, pagamentoRealizado: false, status: 'Em andamento',
+        observacoes: d.observacoes, pagamentoRealizado: false, status: ['Em andamento'],
         historico: [{ data: new Date().toISOString().split('T')[0], usuario: 'Importação', acao: 'Lead importado via planilha.' }],
       };
       onSave(ticket);
